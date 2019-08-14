@@ -14,3 +14,7 @@ apt remove -y fake-hwclock
 update-rc.d -f fake-hwclock remove
 systemctl disable fake-hwclock
 patch /lib/udev/hwclock-set hwclock-set.patch
+if [ -d "/boot" ]
+then
+    cp -u version.txt /boot/
+fi
