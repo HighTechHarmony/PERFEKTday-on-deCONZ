@@ -5,9 +5,8 @@
 // const axios = require('axios');
 import axios from 'axios';
 import * as pdc from './pdc.js';
-import * as deconz from './deCONZ.js';
 
-var DCONZSERVER = "192.168.15.122";
+var DCONZSERVER = "127.0.0.1";
 // Bluetooth advertised name  
 
 const API  = "DF92DC0FA1";
@@ -19,8 +18,6 @@ var WAIT_INTERVAL = 25;
 
 // Delay when sending commands to deCONZ
 export var SEND_DELAY = 1000;
-
-
 
 
 
@@ -79,7 +76,9 @@ export function sleep(ms) {
 }
 
 export async function flashFixture() {
+    // Now using the handy function built into the API
     setGroupValueRaw({alert: "select"}, "0");
+
     // for (let i = 0; i < 2; i++) {
     //     setGroupValue("on", true);
     //     if (pdc.debugdc > 1) {console.log("Light is on");}
@@ -137,15 +136,3 @@ export function kelvinToMired(kelvin) {
 export function miredToKelvin(mired) {
     return Math.round(1000000 / mired);
 }
-
-// flashFixture();
-
-
-
-// modules.export = {
-//     flashFixture: flashFixture
-// };
-
-// export {
-//     flashFixture as default
-// }

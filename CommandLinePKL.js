@@ -210,6 +210,8 @@ export function parseFunction(data)
         if (pdc.debugcp > 1) {console.log("Setting system clock to: "+ timeString);}
         setSystemClock(timeString);
         
+        // Todo: Add code to sync RTC
+
         // Read it back for verification
         now = null;
         now = new Date();
@@ -244,6 +246,9 @@ export function parseFunction(data)
         if (pdc.debugcp > 1) {console.log("Setting system clock to: "+ timeString);}
         setSystemClock(timeString);
         
+        // Todo: Add code to sync RTC
+
+        // Read it back for verification
         now = null;
         now = new Date();
         let newmm = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -322,11 +327,11 @@ function getMonthAndDate(datestring) {
 // setSystemClock('05/05/2023 22:01:12');
 function setSystemClock(time) {
     exec(`date --set=${time}`, (error, stdout, stderr) => {
-      if (error) {
+        if (error) {
         console.error(`exec error: ${error}`);
         return;
-      }
-      console.log(`stdout: ${stdout}`);
-      console.error(`stderr: ${stderr}`);
+        }
+        console.log(`stdout: ${stdout}`);
+        console.error(`stderr: ${stderr}`);
     });
-  }
+}

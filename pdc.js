@@ -6,8 +6,6 @@
 /* Functions and variables that deal with talking to the zigbee lights */
 import * as deconz from './deCONZ.js';
 
-/* Functions and variables that deal with talking with a ble client */
-import * as bleservice from './bleservice.js';
 
 /* Functions and variables that deal with PERFEKTday tracking */
 import * as pdc from './pdc.js';
@@ -24,7 +22,7 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 export const debugpdc = 1; // PDC debug level
 export const debugbl = 0;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
-export const debugcp = 2;  // Command Parser debug level
+export const debugcp = 1;  // Command Parser debug level
 
 
 // a shared object with variables of parameters that are shared between and modified by both the pdc and the command parser 
@@ -56,23 +54,8 @@ export let pdc_parameters = {
 // pdc_parameters.pdRealTime = pdClock.getTime();
 
 
-
-var FirstRun = 1;
-
-var myState = "FIRSTBOOTED";
-
-// export var RealTime = "00:00";
-// export var RealDate = "2/2";
-// export var RealYear = "10";
-var Eupdate = 0;
-
-var DimIn = 0;
-var ColorIn = 0;
-
-
 pdc.pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
 pdc.pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
-// var MinsFromNoon = 0;
 
 
 console.log("Starting PERFEKTday Controller");
@@ -80,11 +63,8 @@ console.log("Starting PERFEKTday Controller");
 // Uncomment this to flash the bulb group at boot up
 deconz.flashFixture();
 
-// Start the PDC event loop
+// Start the PDC cct and dim update event loop
 setInterval(pdc_event_loop, PD_UPDATE_INTERVAL);
-// setInterval(pdc_event_loop, 1000);
-
-
 
 /* This is the UI event loop. It is run every EVENTLOOPINTERVAL  (as defined in the bleservice.js module) when there is a subscriber */
 export function ui_event_loop () {
@@ -102,10 +82,7 @@ export function pdc_event_loop () {
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
     if (pdc.pdc_parameters.PerfektDay) {
         doUpdateCCT();
-
-        doUpdateDim();
-
-        
+        doUpdateDim();        
     } // End of if perfektday enabled
 
     // This function returns nothing
@@ -120,8 +97,7 @@ export function doUpdateCCT () {
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel)) 
-    // if (!pdc.pdc_parameters.hue_sem ) 
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
     {
         pdc.pdc_parameters.hue_sem = true;        
 
@@ -133,10 +109,6 @@ export function doUpdateCCT () {
         // Update both in one shot
         // if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
         // deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
-
-        
-        pdc.pdc_parameters.hue_sem = false;
-
 
         // Update the value comparator
         pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
@@ -152,8 +124,7 @@ export function doUpdateDim () {
 
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel)) 
-    // if (!pdc.pdc_parameters.hue_sem ) 
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
     {
         pdc.pdc_parameters.hue_sem = true;
 
@@ -163,7 +134,6 @@ export function doUpdateDim () {
         deconz.setGroupValue("bri", dl_string, "0");
         
         pdc.pdc_parameters.hue_sem = false;
-
 
         // Update the value comparator        
         pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
@@ -216,9 +186,7 @@ function minsNow() {
     const diff = now - midnight;
     // const midnight = new Date(pdClock.getFullYear(), pdClock.getMonth(), pdClock.getDate(), 0, 0, 0);
     // const diff = pdClock.getTime() - midnight;
-    return Math.round(Math.floor(diff / 60000));
-
-    
+    return Math.round(Math.floor(diff / 60000));    
 }
 
 

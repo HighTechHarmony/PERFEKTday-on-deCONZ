@@ -11,15 +11,14 @@ const DEVICENAME = "PKL24-rpi"
 const INITIAL_ADVERTISING_TIME = 60;
 const INACTIVITY_DISC_TIME = 45;
 
-// const EVENTLOOPINTERVAL = 1000;  // UI Update interval
+// const EVENTLOOPINTERVAL = 1000;  // UI Update interval.  We are not updating UI from this side
 
 var updateInterval =  null;
-
 
 // This will hold the RW characteristic for the BLE "serial" commands and responses
 var ch = null;
 
-// Advertising based on bleno starting or stopping. 
+// Control advertising based on bleno starting or stopping. 
 bleno.on('stateChange', function(state) {
     console.log('on -> stateChange: ' + state);
   
@@ -35,7 +34,7 @@ bleno.on('stateChange', function(state) {
     }
   });
 
-  // Report and respond to the result of advertising start
+  // If advertising started okay, create our service and characteristic
   bleno.on('advertisingStart', function(error) {
     if (pdc.debugbl > 0) {console.log('on -> advertisingStart: ' + (error ? 'error ' + error : 'success'));}
   
@@ -75,16 +74,14 @@ var EchoCharacteristic = function() {
 
 };
 
-// Inherit the prototype methods from from the BlenoCharacteristic constructor
+// Inherit the prototype methods from the BlenoCharacteristic constructor
 util.inherits(EchoCharacteristic, BlenoCharacteristic);
 
 
 // Do something when we receive data from the client
 EchoCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   this._value = data;
-
-  // console.log('EchoCharacteristic - onWriteRequest: value = ' + this._value.toString('hex'));
-  // console.log('EchoCharacteristic - onWriteRequest: value = ' + this._value);
+  
   if (pdc.debugbl > 1) {console.log ('Characteristic received: ' + this._value);}
 
   // Here we will call the function to process commands sent by the client
@@ -101,7 +98,6 @@ EchoCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResp
     }
 
   }
-
 
   callback(this.RESULT_SUCCESS);
 };
@@ -169,5 +165,3 @@ EchoCharacteristic.prototype.onUnsubscribe = function() {
   }
 };
 
-
-// export {EchoCharacteristic };
