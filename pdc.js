@@ -10,6 +10,9 @@ import * as deconz from './deCONZ.js';
 /* Functions and variables that deal with PERFEKTday tracking */
 import * as pdc from './pdc.js';
 
+/* Functions and variables that deal with talking with a ble client */
+import * as bleservice from './bleservice.js';
+
 /* Class for an artificial clock which runs separately from the system */
 // import CustomClock from './pdclock.js';
 
@@ -20,7 +23,7 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
-export const debugbl = 0;  // Bluetooth debug level. 
+export const debugbl = 2;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
 export const debugcp = 1;  // Command Parser debug level
 
@@ -81,8 +84,9 @@ export function pdc_event_loop () {
 
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
     if (pdc.pdc_parameters.PerfektDay) {
-        doUpdateCCT();
-        doUpdateDim();        
+        // doUpdateCCT();
+        // doUpdateDim();
+        doUpdateAll();
     } // End of if perfektday enabled
 
     // This function returns nothing
@@ -92,12 +96,41 @@ export function pdc_event_loop () {
 
 
 
+
+/* Computes new CCT and dimlevel for the time.  If it is different, it will send and update to the bulb group in a single API command */
+
+export function doUpdateAll () {
+    pdc.pdc_parameters.cctNow = CCTPerfectDay(minsNow());
+    if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
+    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
+        
+    
+    pdc.pdc_parameters.dimNow = DimPerfectDay(minsNow());    
+    if (debugpdc > 1) {console.log("Computed Dim: " + pdc.pdc_parameters.dimNow);}
+    let dl_string = pdc.pdc_parameters.dimNow;
+
+    //Send an update to the light group if solar position changed and the zigbee interface isn't busy
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    {
+        pdc.pdc_parameters.hue_sem = true;
+
+        // Update both in one shot
+        if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
+        deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
+
+        // Update the value comparator
+        pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
+        pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
+    }
+
+}
+
 export function doUpdateCCT () {
     pdc.pdc_parameters.cctNow = CCTPerfectDay(minsNow());
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp))     
     {
         pdc.pdc_parameters.hue_sem = true;        
 
@@ -124,7 +157,7 @@ export function doUpdateDim () {
 
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
     {
         pdc.pdc_parameters.hue_sem = true;
 
