@@ -339,3 +339,17 @@ function setSystemClock(time) {
         console.error(`stderr: ${stderr}`);
     });
 }
+
+// setSystemTimezone(2);
+function setSystemTimezone(offset) {
+    const { exec } = require('child_process');
+    const command = `sudo timedatectl set-timezone Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`exec error: ${error}`);
+        return;
+      }
+      console.log(`stdout: ${stdout}`);
+      console.error(`stderr: ${stderr}`);
+    });
+  }

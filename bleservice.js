@@ -161,7 +161,7 @@ EchoCharacteristic.prototype.onUnsubscribe = function() {
   try {
     pdc.pdc_paramaeters.clientConnected = false;  // Publish to other modules the fact that we are not connected
   } catch (error) {
-    if (debugbl > 0) { console.log(error);}
+    // if (debugbl > 0) { console.log(error);}
   }
 };
 
