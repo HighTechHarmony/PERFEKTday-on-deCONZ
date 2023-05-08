@@ -1,11 +1,12 @@
 [Unit]
 Description=PERFETKday service runs nodeJS pdc.js
-After=network.target
+Requires=deconz-gui.service
 
 [Service]
 Environment=NODE_PORT=3001
 Type=simple
 User=root
+ExecStartPre=/bin/bash -c '(while ! nc -z -v -w1 localhost 80 2>/dev/null; do echo "Waiting for port 80 to open..."; sleep 2; done); sleep 2'
 ExecStart=/usr/bin/node /home/pi/PERFEKTday-on-deCONZ/pdc.js
 Restart=on-failure
 
