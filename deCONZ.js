@@ -24,7 +24,7 @@ export var SEND_DELAY = 1000;
 export async function setGroupValue(command, myValue, group = "0") {
     
     const url = `http://${DCONZSERVER}/api/${API}/groups/${group}/action`;
-    if (pdc.debugdc > 0) {
+    if (pdc.debugdc > 1) {
         console.log("deconz url: " + url);
         console.log("deconz data: " + command +": " + myValue);
     }
@@ -48,7 +48,7 @@ export async function setGroupValue(command, myValue, group = "0") {
 export async function setGroupValueRaw(command, group = "0") {
     
     const url = `http://${DCONZSERVER}/api/${API}/groups/${group}/action`;
-    if (pdc.debugdc > 0) {
+    if (pdc.debugdc > 1) {
         console.log("deconz url: " + url);
         console.log("deconz data: " + command);
     }
@@ -73,14 +73,14 @@ export async function getGroupValue(attribute, group = "0") {
     const url = `http://${DCONZSERVER}/api/${API}/groups/${group}`;
     // let response = "";
 
-    if (pdc.debugdc > 0) {
+    if (pdc.debugdc > 1) {
         console.log("deconz url: " + url);        
     }
 
     try {
         const response = await axios.get(url);
         if (pdc.debugdc > 1) {console.log(response.data);}
-        return response.data.action.ct;
+        return response.data.action[attribute];
       } catch (error) {
         console.error(error);
       }
@@ -136,7 +136,7 @@ export function kelvinTo8Bit(kelvin) {
     let MIN_CCT = pdc.pdc_parameters.cct_limit_bottom;
     let MAX_CCT = pdc.pdc_parameters.cct_limit_top;
     const kelvinRange = MAX_CCT - MIN_CCT;
-    const cct = Math.round(((kelvin - 2000) / kelvinRange) * 255);
+    const cct = Math.round(((kelvin - MIN_CCT) / kelvinRange) * 255);
     return Math.max(0, Math.min(255, cct));
 }
 
@@ -148,9 +148,9 @@ function clamp(value, min, max) {
 
 /* Helper function to convert kelvin to mired */
 export function kelvinToMired(kelvin) {
-    return Math.round(1000000 / kelvin);
+    return Math.round(1000000 / Number(kelvin));
 }
 
 export function miredToKelvin(mired) {
-    return Math.round(1000000 / mired);
+    return Math.round(1000000 / Number(mired));
 }

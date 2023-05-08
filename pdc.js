@@ -80,16 +80,7 @@ export function ui_event_loop () {
 /* This is the PDC event loop which computes and sends regular PERFEKTday updates to the bulb group */
 export function pdc_event_loop () {
     
-    if (debugpdc > 1) {console.log("pdc_event_loop cycle");}
-
-    // let attribute =  deconz.getGroupValue(("ct").then => {
-    //     console.log ("getGroupValue got: " + attribute);
-    // });
-
-    let ct = "";
-    deconz.getGroupValue("ct").then((ct) => {
-        console.log("getGroupValue got: "+ Number(ct));
-      });
+    if (debugpdc > 1) {console.log("pdc_event_loop cycle");}   
 
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
     if (pdc.pdc_parameters.PerfektDay) {
@@ -109,35 +100,58 @@ export function pdc_event_loop () {
 /* Computes new CCT and dimlevel for the time.  If it is different, it will send and update to the bulb group in a single API command */
 
 export function doUpdateAll () {
-    pdc.pdc_parameters.cctNow = CCTPerfectDay(minsNow());
-    if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
+    pdc_parameters.cctNow = CCTPerfectDay(minsNow());
+    if (debugpdc > 1) {console.log("Computed CCT: " + pdc_parameters.cctNow);}
     let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
         
     
-    pdc.pdc_parameters.dimNow = DimPerfectDay(minsNow());    
-    if (debugpdc > 1) {console.log("Computed Dim: " + pdc.pdc_parameters.dimNow);}
-    let dl_string = pdc.pdc_parameters.dimNow;
+    pdc_parameters.dimNow = DimPerfectDay(minsNow());    
+    if (debugpdc > 1) {console.log("Computed Dim: " + pdc_parameters.dimNow);}
+    let dl_string = pdc_parameters.dimNow;
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
     // if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
-    pdc_parameters.OldColorTemp = deconz.kelvinTo8Bit(deconz.miredToKelvin(deconz.getGroupValue("ct")));
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != deconz.getGroupValue("dl")))     
     
+    let ct = "";
+    deconz.getGroupValue("ct").then((ct) => {
+        // console.log("getGroupValue got: "+ ct);        
+        pdc_parameters.OldColorTemp = deconz.kelvinTo8Bit(deconz.miredToKelvin(Number(ct)));        
+        // console.log ("ct in mired: " + Number(ct));
+        // console.log ("kelvin: " + deconz.miredToKelvin(Number(ct)));
+        // console.log ("cct: " + deconz.kelvinTo8Bit(deconz.miredToKelvin(Number(ct))));
+      });
 
+    // if (debugpdc >1) {console.log ("OldColorTemp is now " + pdc_parameters.OldColorTemp);}
+
+    let bri = "";
+    deconz.getGroupValue("bri").then((bri) => {
+        // console.log("getGroupValue got: "+ bri);        
+        pdc_parameters.OldDimLevel = Number(bri);
+      });
+
+    // if (debugpdc >1) {console.log ("OldDimLevel is now " + pdc_parameters.OldDimLevel);}
+
+    if (!pdc_parameters.hue_sem && (pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc_parameters.dimNow != pdc_parameters.OldDimLevel))    
     {
         pdc.pdc_parameters.hue_sem = true;
 
         // Update both in one shot
-        if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
+        if (debugpdc > 0) {console.log("doUpdateAll () Updating bulb group (zigbee) with: "+ mired_to_send + "," + dl_string);}
         deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
+        
 
         // Update the value comparator
-        pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
-        pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
+        pdc_parameters.OldColorTemp = pdc_parameters.cctNow;
+        pdc_parameters.OldDimLevel = pdc_parameters.dimNow;
+
+        pdc_parameters.hue_sem = false;
     }
 
 }
 
+
+
+/* Explicitly calculate and update the Colortemp of the bulb group, used for forced updates after time settings */
 export function doUpdateCCT () {
     pdc.pdc_parameters.cctNow = CCTPerfectDay(minsNow());
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
@@ -148,19 +162,19 @@ export function doUpdateCCT () {
 
     // Update the CT
     let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
-    if (debugpdc > 0) {console.log("Updating bulb group with new CCT: "+ pdc_parameters.cctNow);}
+    if (debugpdc > 0) {console.log("doUpdateCCT () Updating bulb group with new CCT: "+ pdc_parameters.cctNow);}
     deconz.setGroupValue("ct", mired_to_send, "0");        
 
-    // Update both in one shot
-    // if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
-    // deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
-
+        
     // Update the value comparator
     pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
+
+    pdc_parameters.hue_sem = false;
 
 }
 
 
+/* Explicitly calculate and update the dimlevel of the bulb group, used for forced updates after time settings */
 export function doUpdateDim () {
 
     pdc.pdc_parameters.dimNow = DimPerfectDay(minsNow());
@@ -169,18 +183,22 @@ export function doUpdateDim () {
     pdc.pdc_parameters.hue_sem = true;
 
     // Update the dimlevel
-    if (debugpdc > 0) {console.log("Updating bulb group with new DimLevel: "+ pdc_parameters.dimNow);}
+    if (debugpdc > 0) {console.log("doUpdateDim() Updating bulb group with new DimLevel: "+ pdc_parameters.dimNow);}
     let dl_string = pdc.pdc_parameters.dimNow;        
     deconz.setGroupValue("bri", dl_string, "0");
     
-    pdc.pdc_parameters.hue_sem = false;
+    
 
     // Update the value comparator        
     pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
 
+    pdc.pdc_parameters.hue_sem = false;
+
 }
 
 
+
+/* The math portion of perfekt day, plots the current color temp based on the sun's position from minsnow (minutes since midnight)*/
 function CCTPerfectDay(minsnow) {
     let sunup = TimeToMins(pdc_parameters.SunUp);
     let sundown = TimeToMins(pdc_parameters.SunDown);
@@ -197,6 +215,7 @@ function CCTPerfectDay(minsnow) {
     }
 }
 
+/* The math portion of perfekt day, plots the current dim level based on the sun's position (minsnow = minutes since midnight) */
 function DimPerfectDay(minsnow) {
     let sunup = TimeToMins(pdc_parameters.SunUp);
     let sundown = TimeToMins(pdc_parameters.SunDown);
