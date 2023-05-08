@@ -219,8 +219,12 @@ export function parseFunction(data)
         let newminutes = now.getMinutes().toString().padStart(2, '0');
 
         // Force an immediate update of the PDC in case this is part of a cycle review
-        pdc.doUpdateCCT();
-        pdc.doUpdateDim();
+        // pdc.OldColorTemp = 999;  // Force Invalidate
+        // pdc.OldDimLevel = 999;   // Force Invalidate
+        if (pdc.pdc_parameters.PerfektDay) {
+            pdc.doUpdateCCT();
+            pdc.doUpdateDim();
+        }
 
         return "RT;" + newhours + ":" + newminutes;
 

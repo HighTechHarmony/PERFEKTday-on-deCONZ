@@ -9,7 +9,7 @@ import * as pdc from './pdc.js';
 var DCONZSERVER = "127.0.0.1";
 // Bluetooth advertised name  
 
-const API  = "DF92DC0FA1";
+const API  = "82C80C894F";
 const PORT = 80;
 
 var FLASH_DELAY = 1000;
@@ -67,6 +67,24 @@ export async function setGroupValueRaw(command, group = "0") {
 
 }
 
+/* Returns the value of the given attribute for the given group */
+export async function getGroupValue(attribute, group = "0") {
+
+    const url = `http://${DCONZSERVER}/api/${API}/groups/${group}`;
+    // let response = "";
+
+    if (pdc.debugdc > 0) {
+        console.log("deconz url: " + url);        
+    }
+
+    try {
+        const response = await axios.get(url);
+        if (pdc.debugdc > 1) {console.log(response.data);}
+        return response.data.action.ct;
+      } catch (error) {
+        console.error(error);
+      }
+}
 
 
 /* Helper function to wait in an async friendly way */

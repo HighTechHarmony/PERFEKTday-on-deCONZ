@@ -23,7 +23,7 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
-export const debugbl = 2;  // Bluetooth debug level. 
+export const debugbl = 1;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
 export const debugcp = 1;  // Command Parser debug level
 
@@ -82,6 +82,15 @@ export function pdc_event_loop () {
     
     if (debugpdc > 1) {console.log("pdc_event_loop cycle");}
 
+    // let attribute =  deconz.getGroupValue(("ct").then => {
+    //     console.log ("getGroupValue got: " + attribute);
+    // });
+
+    let ct = "";
+    deconz.getGroupValue("ct").then((ct) => {
+        console.log("getGroupValue got: "+ Number(ct));
+      });
+
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
     if (pdc.pdc_parameters.PerfektDay) {
         // doUpdateCCT();
@@ -110,7 +119,11 @@ export function doUpdateAll () {
     let dl_string = pdc.pdc_parameters.dimNow;
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    // if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    pdc_parameters.OldColorTemp = deconz.kelvinTo8Bit(deconz.miredToKelvin(deconz.getGroupValue("ct")));
+    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != deconz.getGroupValue("dl")))     
+    
+
     {
         pdc.pdc_parameters.hue_sem = true;
 
@@ -130,22 +143,20 @@ export function doUpdateCCT () {
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp))     
-    {
-        pdc.pdc_parameters.hue_sem = true;        
+    
+    pdc.pdc_parameters.hue_sem = true;        
 
-        // Update the CT
-        let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
-        if (debugpdc > 0) {console.log("Updating bulb group with new CCT: "+ pdc_parameters.cctNow);}
-        deconz.setGroupValue("ct", mired_to_send, "0");        
+    // Update the CT
+    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
+    if (debugpdc > 0) {console.log("Updating bulb group with new CCT: "+ pdc_parameters.cctNow);}
+    deconz.setGroupValue("ct", mired_to_send, "0");        
 
-        // Update both in one shot
-        // if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
-        // deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
+    // Update both in one shot
+    // if (debugpdc > 0) {console.log("Updating bulb group with: "+ mired_to_send + "," + dl_string);}
+    // deconz.setGroupValueRaw("{\"ct\": " +mired_to_send + ",\"bri\": " + dl_string + "}", "0");
 
-        // Update the value comparator
-        pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
-    }
+    // Update the value comparator
+    pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
 
 }
 
@@ -155,22 +166,17 @@ export function doUpdateDim () {
     pdc.pdc_parameters.dimNow = DimPerfectDay(minsNow());
     if (debugpdc > 1) {console.log("Computed Dim: " + pdc.pdc_parameters.dimNow);}
 
+    pdc.pdc_parameters.hue_sem = true;
 
-    //Send an update to the light group if solar position changed and the zigbee interface isn't busy
-    if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
-    {
-        pdc.pdc_parameters.hue_sem = true;
+    // Update the dimlevel
+    if (debugpdc > 0) {console.log("Updating bulb group with new DimLevel: "+ pdc_parameters.dimNow);}
+    let dl_string = pdc.pdc_parameters.dimNow;        
+    deconz.setGroupValue("bri", dl_string, "0");
+    
+    pdc.pdc_parameters.hue_sem = false;
 
-        // Update the dimlevel
-        if (debugpdc > 0) {console.log("Updating bulb group with new DimLevel: "+ pdc_parameters.dimNow);}
-        let dl_string = pdc.pdc_parameters.dimNow;        
-        deconz.setGroupValue("bri", dl_string, "0");
-        
-        pdc.pdc_parameters.hue_sem = false;
-
-        // Update the value comparator        
-        pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
-    }
+    // Update the value comparator        
+    pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
 
 }
 
