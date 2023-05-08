@@ -1,0 +1,13 @@
+[Unit]
+Description=PERFETKday service runs nodeJS pdc.js
+After=network.target
+
+[Service]
+Environment=NODE_PORT=3001
+Type=simple
+User=root
+ExecStart=/usr/bin/node /home/pi/PERFEKTday-on-deCONZ/pdc.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
