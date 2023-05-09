@@ -15,6 +15,7 @@ const PORT = 80;
 var FLASH_DELAY = 1000;
 var FLASH_ID_ON_BOOT = 1000;
 var WAIT_INTERVAL = 25;
+var pairingSeconds = 254; //1–254 = time in seconds the network remains open for new devices to pair
 
 // Delay when sending commands to deCONZ
 export var SEND_DELAY = 1000;
@@ -84,6 +85,33 @@ export async function getGroupValue(attribute, group = "0") {
       } catch (error) {
         console.error(error);
       }
+}
+
+/* Allows a bulb to pair with the network for 254 seconds */
+export async function initiateJoin () {
+    const url = `http://${DCONZSERVER}/api/${API}/config`;
+    // let response = "";
+
+    if (pdc.debugdc > 0 ) {
+        console.log ("Initiating pairing mode");
+    }
+
+    if (pdc.debugdc > 1) {
+        
+        console.log("deconz url: " + url);        
+    }
+
+    const res = await axios.put(url, {'permitjoin': [pairingSeconds]})
+    .then(response => {
+        if (pdc.debugdc > 1) {
+            console.log("Got Axios Response: ");
+            console.log(response.data);
+        }        
+        
+        })
+        .catch(error => {
+            if (pdc.debugdc > 0) {console.log(error); }
+        });   
 }
 
 

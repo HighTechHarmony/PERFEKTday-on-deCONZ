@@ -22,6 +22,7 @@ import * as bleservice from './bleservice.js';
 
 // GPIO pin of the cycle review button
 var cycleReviewButtonPin = 6;
+var pairingButtonPin = 5;
 
 /* Variables shared with other modules */
 export const VerSub = 83;
@@ -73,23 +74,31 @@ console.log("Starting PERFEKTday Controller");
 pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
 pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
 
-/* Some config for the cycle review push button */
-const button = new Gpio(cycleReviewButtonPin, 'in', 'rising', {debounceTimeout: 100});
+/* Some config for the push buttons */
+const buttonCR = new Gpio(cycleReviewButtonPin, 'in', 'rising', {debounceTimeout: 100});
+const buttonPairing = new Gpio(pairingButtonPin, 'in', 'rising', {debounceTimeout: 1000});
 
-var button_push_started = false;
-var button_push_clock = null;
-
-/* Remove the button handler if the program is exited */
 process.on('SIGINT', _ => {    
-    button.unexport();
+    buttonCR.unexport();
+    buttonPairing.unexport();
   });
 
-button.watch((err, value) => {
+/* If the cycle review button is pressed, call function to do cycle review */
+buttonCR.watch((err, value) => {
     if (err) {
         throw err;
     }
 
     cycleReview();
+});
+
+/* If the pairing button is pressed, call function to initiate join */
+buttonPairing.watch((err, value) => {
+    if (err) {
+        throw err;
+    }
+
+    deconz.initiateJoin();
 });
 
 
@@ -149,7 +158,7 @@ export function pdc_event_loop () {
 
 
 
-/* Computes new CCT and dimlevel for the time.  If it is different, it will send and update to the bulb group in a single API command */
+/* Computes new CCT and dimlevel for the time. Sends an update to the bulb group in a single API command */
 
 export function doUpdateAll (mins) {
     pdc_parameters.cctNow = CCTPerfectDay(mins);
@@ -161,7 +170,7 @@ export function doUpdateAll (mins) {
     if (debugpdc > 1) {console.log("Computed Dim: " + pdc_parameters.dimNow);}
     let dl_string = pdc_parameters.dimNow;
 
-    //Send an update to the light group if solar position changed and the zigbee interface isn't busy
+    //Send an update to the light group the zigbee interface isn't busy
     // if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
     
     let ct = "";
@@ -183,7 +192,9 @@ export function doUpdateAll (mins) {
 
     // if (debugpdc >1) {console.log ("OldDimLevel is now " + pdc_parameters.OldDimLevel);}
 
-    if (!pdc_parameters.hue_sem && (pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc_parameters.dimNow != pdc_parameters.OldDimLevel))    
+    // Below line only sends the update it the values have changed
+    // if (!pdc_parameters.hue_sem && (pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc_parameters.dimNow != pdc_parameters.OldDimLevel))    
+    if (!pdc_parameters.hue_sem )    
     {
         pdc.pdc_parameters.hue_sem = true;
 
