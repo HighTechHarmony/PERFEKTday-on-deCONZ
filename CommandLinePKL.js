@@ -222,8 +222,8 @@ export function parseFunction(data)
         // pdc.OldColorTemp = 999;  // Force Invalidate
         // pdc.OldDimLevel = 999;   // Force Invalidate
         if (pdc.pdc_parameters.PerfektDay) {
-            pdc.doUpdateCCT();
-            pdc.doUpdateDim();
+            pdc.doUpdateCCT(pdc.minsNow());
+            pdc.doUpdateDim(pdc.minsNow());
         }
 
         return "RT;" + newhours + ":" + newminutes;

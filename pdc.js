@@ -3,6 +3,10 @@
  * This module houses the functions that are most core to the operation of PERFEKTday 
  */
 
+/* Library for reading the cycle review pushbutton via GPIO */
+
+import {Gpio} from 'onoff';
+
 /* Functions and variables that deal with talking to the zigbee lights */
 import * as deconz from './deCONZ.js';
 
@@ -16,11 +20,15 @@ import * as bleservice from './bleservice.js';
 /* Class for an artificial clock which runs separately from the system */
 // import CustomClock from './pdclock.js';
 
+// GPIO pin of the cycle review button
+var cycleReviewButtonPin = 6;
 
 /* Variables shared with other modules */
 export const VerSub = 83;
 const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the bulb group for PERFEKTday
 
+// Time in milliseconds for each cycle review tick. This should be longer than the Hue transition time or it looks bad
+const CYCLEREVIEWINTERVAL = 500; 
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
@@ -43,7 +51,7 @@ export let pdc_parameters = {
     DimLevel: 255,
     DimLevelScaled: 0,    
     PerfektLight: 1,
-    cct_limit_bottom: 2700,
+    cct_limit_bottom: 2200,
     cct_limit_top: 6500,
     NightCCT: 0,
     cctNow: 0,
@@ -60,11 +68,30 @@ export let pdc_parameters = {
 // pdc_parameters.pdRealTime = pdClock.getTime();
 
 
-pdc.pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
-pdc.pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
-
-
 console.log("Starting PERFEKTday Controller");
+
+pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
+pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
+
+/* Some config for the cycle review push button */
+const button = new Gpio(cycleReviewButtonPin, 'in', 'rising', {debounceTimeout: 100});
+
+var button_push_started = false;
+var button_push_clock = null;
+
+/* Remove the button handler if the program is exited */
+process.on('SIGINT', _ => {    
+    button.unexport();
+  });
+
+button.watch((err, value) => {
+    if (err) {
+        throw err;
+    }
+
+    cycleReview();
+});
+
 
 // Uncomment this to flash the bulb group at boot up
 deconz.flashFixture();
@@ -90,7 +117,7 @@ export function pdc_event_loop () {
     if (pdc.pdc_parameters.PerfektDay) {
         // doUpdateCCT();
         // doUpdateDim();
-        doUpdateAll();
+        doUpdateAll(minsNow());
     } // End of if perfektday enabled
     
 
@@ -124,13 +151,13 @@ export function pdc_event_loop () {
 
 /* Computes new CCT and dimlevel for the time.  If it is different, it will send and update to the bulb group in a single API command */
 
-export function doUpdateAll () {
-    pdc_parameters.cctNow = CCTPerfectDay(minsNow());
+export function doUpdateAll (mins) {
+    pdc_parameters.cctNow = CCTPerfectDay(mins);
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc_parameters.cctNow);}
     let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
         
     
-    pdc_parameters.dimNow = DimPerfectDay(minsNow());    
+    pdc_parameters.dimNow = DimPerfectDay(mins);    
     if (debugpdc > 1) {console.log("Computed Dim: " + pdc_parameters.dimNow);}
     let dl_string = pdc_parameters.dimNow;
 
@@ -177,8 +204,8 @@ export function doUpdateAll () {
 
 
 /* Explicitly calculate and update the Colortemp of the bulb group, used for forced updates after time settings */
-export function doUpdateCCT () {
-    pdc.pdc_parameters.cctNow = CCTPerfectDay(minsNow());
+export function doUpdateCCT (mins) {
+    pdc.pdc_parameters.cctNow = CCTPerfectDay(mins);
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
@@ -200,9 +227,9 @@ export function doUpdateCCT () {
 
 
 /* Explicitly calculate and update the dimlevel of the bulb group, used for forced updates after time settings */
-export function doUpdateDim () {
+export function doUpdateDim (mins) {
 
-    pdc.pdc_parameters.dimNow = DimPerfectDay(minsNow());
+    pdc.pdc_parameters.dimNow = DimPerfectDay(mins);
     if (debugpdc > 1) {console.log("Computed Dim: " + pdc.pdc_parameters.dimNow);}
 
     pdc.pdc_parameters.hue_sem = true;
@@ -263,7 +290,7 @@ function DimPerfectDay(minsnow) {
 
 
 /* Helper function to return the number of minutes since midnight */
-function minsNow() {
+export function minsNow() {
     const now = new Date();    
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const diff = now - midnight;
@@ -277,4 +304,30 @@ function minsNow() {
 function TimeToMins(time) {
     const [hours, minutes] = time.split(':');
     return (parseInt(hours) * 60) + parseInt(minutes);
+}
+
+/* If the button is pushed, this will engage cycle review mode. This is a quick run through of the PD day */
+function cycleReview () {
+    console.log("cycleReview()");
+
+    // Disable PERFEKTday because it will interfere
+    let oldPerfektDay = pdc_parameters.PerfektDay;
+    pdc_parameters.PerfektDay = false;
+
+    let mins = TimeToMins(pdc_parameters.SunUp);
+    // let count = 0;
+
+    const interval = setInterval(() => {
+        if (mins >= TimeToMins(pdc_parameters.SunDown)) {
+            clearInterval(interval);
+            pdc_parameters.PerfektDay = oldPerfektDay;  // Restore PerfektDay setting
+            deconz.flashFixture(); // Flash the fixture to show we are done
+            return;
+        }
+        console.log("mins = " + mins);
+        doUpdateAll(mins);
+        mins += 15;
+        // count++;
+    }, CYCLEREVIEWINTERVAL);
+
 }
