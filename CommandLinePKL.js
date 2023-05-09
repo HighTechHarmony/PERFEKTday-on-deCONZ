@@ -132,6 +132,10 @@ export function parseFunction(data)
         if (pdc.debugcp) {console.log("Received PerfektDay to set: " + pdtemp);}
 
         pdc.pdc_parameters.PerfektDay = pdtemp;
+
+        //Store the new parameters
+        pdc.storeParams();
+
         return "PD;" + pdc.pdc_parameters.PerfektDay;
     }
 
@@ -150,6 +154,9 @@ export function parseFunction(data)
         pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
         pdc.pdc_parameters.hue_sem = false;
 
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "CT;" + pdc.pdc_parameters.cctNow;
     }
 
@@ -169,48 +176,83 @@ export function parseFunction(data)
         pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
         pdc.pdc_parameters.hue_sem = false;
 
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "DL;" + pdc.pdc_parameters.dimNow;
     }
 
     if (extract_command(cleaned) === "DNS") {
         pdc.pdc_parameters.SolarNoonDim = extract_numeric(cleaned, delimiters);
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "DN;" + pdc.pdc_parameters.SolarNoonDim;
     }
 
     if (extract_command(cleaned) === "DUS") {
         pdc.pdc_parameters.SunUpDim = extract_numeric(cleaned, delimiters);
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "DU;" + pdc.pdc_parameters.SunUpDim;
     }
 
     if (extract_command(cleaned) === "DDS") {
         pdc.pdc_parameters.SunDownDim = extract_numeric(cleaned, delimiters);
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "DD;" + pdc.pdc_parameters.SunDownDim;
     }
 
 
     if (extract_command(cleaned) ===  "SUS") {
         pdc.pdc_parameters.SunUp = extract_numeric(cleaned, delimiters);
+               
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "SU;" + pdc.pdc_parameters.SunUp;
     }
 
     if (extract_command(cleaned) ===  "SDS") {
         pdc.pdc_parameters.SunDown = extract_numeric(cleaned, delimiters);
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "SD;" + pdc.pdc_parameters.SunDown;
     }
 
     if (extract_command(cleaned) ==  "SNS") {
         pdc.pdc_parameters.SolarNoon = extract_numeric(cleaned, delimiters);
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
         return "SN;" + pdc.pdc_parameters.SolarNoon;
     }
 
     if (extract_command(cleaned) == "MBS") {
         pdc.pdc_parameters.cct_limit_bottom = extract_numeric(cleaned, delimiters);
         return "MB;" + pdc.pdc_parameters.cct_limit_bottom;
+        
+        //Store the new parameters
+        pdc.storeParams();
+        
     }
 
     if (extract_command(cleaned) == "MTS") {
         pdc.pdc_parameters.cct_limit_top = extract_numeric(cleaned, delimiters);
         return "MT;" + pdc.pdc_parameters.cct_limit_top;
+        
+        //Store the new parameters
+        pdc.storeParams();        
+
     }
 
 

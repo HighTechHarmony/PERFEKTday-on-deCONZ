@@ -3,8 +3,9 @@
  * This module houses the functions that are most core to the operation of PERFEKTday 
  */
 
-/* Library for reading the cycle review pushbutton via GPIO */
+import * as fs from 'fs';
 
+/* Library for reading the cycle review pushbutton via GPIO */
 import {Gpio} from 'onoff';
 
 /* Functions and variables that deal with talking to the zigbee lights */
@@ -21,12 +22,14 @@ import * as bleservice from './bleservice.js';
 // import CustomClock from './pdclock.js';
 
 // GPIO pin of the cycle review button
-var cycleReviewButtonPin = 6;
-var pairingButtonPin = 5;
+const cycleReviewButtonPin = 6;
+const pairingButtonPin = 5;
+const datafilepath = 'pdc_data.json';
 
 /* Variables shared with other modules */
 export const VerSub = 83;
 const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the bulb group for PERFEKTday
+
 
 // Time in milliseconds for each cycle review tick. This should be longer than the Hue transition time or it looks bad
 const CYCLEREVIEWINTERVAL = 500; 
@@ -62,6 +65,8 @@ export let pdc_parameters = {
     clientConnected: false,    
 }
 
+/* Attempt to restore the above pdc_parameters from data file (overwriting them) */
+restoreParams();
 
 
 // Create instance of a synthetic clock we will use to track the simulated position of sun
@@ -341,4 +346,39 @@ function cycleReview () {
         // count++;
     }, CYCLEREVIEWINTERVAL);
 
+}
+
+/* Writes all PDC parameters to a file for restoring at startup */
+export function storeParams () {  
+  
+  fs.writeFile(datafilepath, JSON.stringify(pdc_parameters), (err) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    
+    console.log('PDC Parameters written to ' + datafilepath);
+  });
+}
+
+/* Restores all PDC parameters from file */
+function restoreParams () {
+
+    if (!fs.existsSync(datafilepath)) {
+        console.log('Data File ' + datafilepath + ' does not exist. Creating it');
+        storeParams();
+        return;
+    }
+
+    fs.readFile(datafilepath, (err, data) => {
+        if (err) {
+          console.error(err);          
+          return;
+        }
+        
+        // const { value1, value2, value3 } = JSON.parse(data);
+        pdc_parameters =  JSON.parse(data);
+
+        console.log('PDC Parameters restored from ' + datafilepath);
+    });    
 }
