@@ -78,8 +78,20 @@ export function parseFunction(data)
     }
 
     if (cleaned === "DL?") {
+        // Send the current dim level
         return "DL;" + pdc.pdc_parameters.dimNow;
     }
+
+    if (cleaned === "MT?") {
+        // Sent the top cct limit
+        return "MT;" + pdc.pdc_parameters.cct_limit_top;
+    }
+
+    if (cleaned === "MB?") {
+        // Sent the bottom cct limit
+        return "MB;" + pdc.pdc_parameters.cct_limit_bottom;
+    }
+
 
     if (cleaned === "RD?") {
         let date = new Date();
@@ -189,6 +201,16 @@ export function parseFunction(data)
     if (extract_command(cleaned) ==  "SNS") {
         pdc.pdc_parameters.SolarNoon = extract_numeric(cleaned, delimiters);
         return "SN;" + pdc.pdc_parameters.SolarNoon;
+    }
+
+    if (extract_command(cleaned) == "MBS") {
+        pdc.pdc_parameters.cct_limit_bottom = extract_numeric(cleaned, delimiters);
+        return "MB;" + pdc.pdc_parameters.cct_limit_bottom;
+    }
+
+    if (extract_command(cleaned) == "MTS") {
+        pdc.pdc_parameters.cct_limit_top = extract_numeric(cleaned, delimiters);
+        return "MT;" + pdc.pdc_parameters.cct_limit_top;
     }
 
 
