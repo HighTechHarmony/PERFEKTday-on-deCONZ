@@ -9,11 +9,13 @@ const CCCD = "2901";
 
 const DEVICENAME = "PKL24-rpi"
 const INITIAL_ADVERTISING_TIME = 60;
-const INACTIVITY_DISC_TIME = 45;
 
-// const EVENTLOOPINTERVAL = 1000;  // UI Update interval.  We are not updating UI from this side
+const INACTIVITY_DISC_TIME = 45; // Number of seconds since last transmission received before a client is forcibly disconnected
+var disconnect_timer = INACTIVITY_DISC_TIME;
 
-var updateInterval =  null;
+const EVENTLOOPINTERVAL = 1000;  // Server side Update interval. Currently used for disconnect timer
+
+var inactivityInterval =  null;
 
 // This will hold the RW characteristic for the BLE "serial" commands and responses
 var ch = null;
@@ -91,6 +93,10 @@ EchoCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResp
   {
     if (pdc.debugbl > 1) {console.log ("parseFunction has data for the client: " + pfreturn);}
     if (pdc.debugbl > 1) {console.log ("sending...");}
+    
+    //Reset the disconnect timer
+    disconnect_timer = INACTIVITY_DISC_TIME;
+
     try {
       this._updateValueCallback(Buffer.from(pfreturn + "\r\r"));  // sometime this fails, need to catch
     } catch (error) {
@@ -118,9 +124,32 @@ EchoCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCal
 
   pdc.pdc_parameters.clientConnected = true;  // Publish to other modules the fact that we are connected
   
+  //Reset the disconnect timer
+  disconnect_timer = INACTIVITY_DISC_TIME;
 
   // Uncomment this code if server push UI updates are needed
   // // Start an interval loop to send UI updates to the client
+
+  inactivityInterval =  setInterval(() => {
+      // console.log ("disconnect_timer = " + disconnect_timer);
+      // If a client is connected, deduct seconds since they last said something
+      if (pdc.pdc_parameters.clientConnected) {
+          if (pdc.debugbl > 1) {console.log ("disconnect time: " + disconnect_timer);}
+          disconnect_timer = disconnect_timer - (EVENTLOOPINTERVAL / 1000);  // Subtract this loop interval in seconds
+
+          
+          if (disconnect_timer <= 0) {
+              // well I think they're dead, kick them.
+              disconnect_timer = 0;  //Don't let disconnect_timer go below 0
+              clearInterval(inactivityInterval);
+              disconnect();
+          }
+      }
+      else {
+          if (debugpdc > 1) {console.log("A client is not connected");}
+      }
+    }, EVENTLOOPINTERVAL); // inactivityInterval
+  };
   // updateInterval = setInterval(() => {
   //   // Convert string to a byte array so it can be sent over bluetooth
   //   // this._value = Buffer.from ("Hello from UI interval\r\r");
@@ -144,16 +173,16 @@ EchoCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCal
   //   } // End of If data.length > 0
   //   }, EVENTLOOPINTERVAL);
   
-};
+// };
 
 // A client has unsubscribed from our characteristic
 EchoCharacteristic.prototype.onUnsubscribe = function() {
   if (pdc.pdc_parameters.debugbl > 0 ) {console.log('EchoCharacteristic - onUnsubscribe');}
 
   // Clear the update interval
-  if (updateInterval) {
-    clearInterval(updateInterval);
-    updateInterval = null;
+  if (inactivityInterval) {
+    clearInterval(inactivityInterval);
+    inactivityInterval = null;
   }
 
   this._updateValueCallback = null;
@@ -165,3 +194,8 @@ EchoCharacteristic.prototype.onUnsubscribe = function() {
   }
 };
 
+/* Forcibly disconnects a client */
+export function disconnect () {
+  if (pdc.debugbl > 0 ) {console.log ("Inactivity timeout, forcibly disconnecting client");}
+  bleno.disconnect();
+}

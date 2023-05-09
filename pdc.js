@@ -21,9 +21,10 @@ import * as bleservice from './bleservice.js';
 export const VerSub = 83;
 const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the bulb group for PERFEKTday
 
+
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
-export const debugbl = 1;  // Bluetooth debug level. 
+export const debugbl = 2;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
 export const debugcp = 1;  // Command Parser debug level
 
@@ -51,6 +52,8 @@ export let pdc_parameters = {
     OldDimLevel: 255,
     clientConnected: false,    
 }
+
+
 
 // Create instance of a synthetic clock we will use to track the simulated position of sun
 // export const pdClock = new CustomClock();
@@ -80,6 +83,7 @@ export function ui_event_loop () {
 /* This is the PDC event loop which computes and sends regular PERFEKTday updates to the bulb group */
 export function pdc_event_loop () {
     
+    
     if (debugpdc > 1) {console.log("pdc_event_loop cycle");}   
 
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
@@ -88,6 +92,27 @@ export function pdc_event_loop () {
         // doUpdateDim();
         doUpdateAll();
     } // End of if perfektday enabled
+    
+
+    // console.log ("disconnect_timer = " + pdc_parameters.disconnect_timer);
+    // // If a client is connected, deduct seconds since they last said something
+    // if (pdc_parameters.clientConnected) {
+    //     if (debugpdc > 1) {console.log ("disconnect time: " + pdc_parameters.disconnect_timer);}
+    //     pdc_parameters.disconnect_timer = pdc_parameters.disconnect_timer - PD_UPDATE_INTERVAL;
+
+        
+    //     if (pdc_parameters.disconnect_timer <= 0) {
+    //         // well I think they're dead, kick them.
+    //         pdc_parameters.disconnect_timer = 0;  //Don't let disconnect_timer go below 0
+    //         clearInterval(disconnect_interval);
+    //         bleservice.disconnect();
+    //     }
+    // }
+    // else {
+    //     if (debugpdc > 1) {console.log("A client is not connected");}
+    // }
+    
+
 
     // This function returns nothing
     return "";
