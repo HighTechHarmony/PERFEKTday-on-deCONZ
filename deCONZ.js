@@ -101,7 +101,7 @@ export async function initiateJoin () {
         console.log("deconz url: " + url);        
     }
 
-    const res = await axios.put(url, {'permitjoin': [pairingSeconds]})
+    const res = await axios.put(url, {'permitjoin': pairingSeconds})
     .then(response => {
         if (pdc.debugdc > 1) {
             console.log("Got Axios Response: ");

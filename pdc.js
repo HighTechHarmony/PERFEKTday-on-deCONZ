@@ -36,7 +36,7 @@ const CYCLEREVIEWINTERVAL = 500;
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
-export const debugbl = 2;  // Bluetooth debug level. 
+export const debugbl = 1;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
 export const debugcp = 1;  // Command Parser debug level
 
