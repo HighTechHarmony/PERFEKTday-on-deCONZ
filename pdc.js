@@ -230,7 +230,7 @@ export function doUpdateCCT (mins) {
 
     // Update the CT
     let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
-    if (debugpdc > 0) {console.log("doUpdateCCT () Updating bulb group with new CCT: "+ pdc_parameters.cctNow);}
+    if (debugpdc > 0) {console.log("doUpdateCCT () Updating bulb group (zigbee) with new CCT: "+ pdc_parameters.cctNow);}
     deconz.setGroupValue("ct", mired_to_send, "0");        
 
         
@@ -251,7 +251,7 @@ export function doUpdateDim (mins) {
     pdc.pdc_parameters.hue_sem = true;
 
     // Update the dimlevel
-    if (debugpdc > 0) {console.log("doUpdateDim() Updating bulb group with new DimLevel: "+ pdc_parameters.dimNow);}
+    if (debugpdc > 0) {console.log("doUpdateDim() Updating bulb group (zigbee) with new DimLevel: "+ pdc_parameters.dimNow);}
     let dl_string = pdc.pdc_parameters.dimNow;        
     deconz.setGroupValue("bri", dl_string, "0");
     

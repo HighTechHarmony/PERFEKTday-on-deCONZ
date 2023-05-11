@@ -155,7 +155,7 @@ export function _8bit_to_kelvin(_8_bit_cct) {
  
     cct = clamp(cct, MIN_CCT, MAX_CCT);
 
-    if (pdc.debugdc > 0) {console.log("Kelvin: " + cct);}
+    if (pdc.debugdc > 1) {console.log("Kelvin: " + cct);}
   
     return cct;
 }

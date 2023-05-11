@@ -2,12 +2,17 @@ import util from 'util';
 import bleno from 'bleno';
 import * as pdc from './pdc.js';
 import * as CommandLinePKL from './CommandLinePKL.js';
+import {exec} from 'child_process';
+import { promisify } from 'util';
+
 
 const UART_UUID = "FFE0";
 const CH_UUID = "FFE1";
 const CCCD = "2901";
 
-const DEVICENAME = "PKL24-rpi"
+// var DEVICENAME = "PKL24-temp";
+// var DEVICENAME = "";
+let DEVICENAME = "PKL24-temp";
 const INITIAL_ADVERTISING_TIME = 60;
 
 const INACTIVITY_DISC_TIME = 45; // Number of seconds since last transmission received before a client is forcibly disconnected
@@ -20,25 +25,29 @@ var inactivityInterval =  null;
 // This will hold the RW characteristic for the BLE "serial" commands and responses
 var ch = null;
 
-// Control advertising based on bleno starting or stopping. 
-bleno.on('stateChange', function(state) {
-    console.log('on -> stateChange: ' + state);
-  
-    // State has chanaged to on, start advertising
-    if (state === 'poweredOn') {
-      bleno.startAdvertising(DEVICENAME, [UART_UUID], function(err) {
-          console.log(err);
-      });
-    } else {
-      // State has changed to off, stop advertising
-      if (pdc.debugbl > 0) {console.log("will stop advertising");}
-      bleno.stopAdvertising();
-    }
-  });
 
-  bleno.on('addressChange', (address) => {
-    if (debugbl > 0) {console.log(`Bleno adapter address changed to ${address}`);}
-  });
+// Control advertising based on bleno starting or stopping. 
+bleno.on('stateChange', function(state) {  
+  console.log('on -> stateChange: ' + state);
+
+  // State has chanaged to on, start advertising
+  if (state === 'poweredOn') {
+    convertToDeviceName() // Sets a device name based on the Bluetooth adapter address
+      .then((result) => {
+        DEVICENAME = result;
+        // if (pdc.debugbl > 0) {console.log(`Device name set to ${DEVICENAME}`);}
+        if (pdc.debugbl > 0) {console.log("Starting advertising with DEVICENAME " + DEVICENAME);}
+        bleno.startAdvertising(DEVICENAME, [UART_UUID], function(err) {
+          console.log(err);
+        });
+      })
+      .catch(console.error);
+  } else {
+    // State has changed to off, stop advertising
+    if (pdc.debugbl > 0) {console.log("will stop advertising");}
+    bleno.stopAdvertising();
+  }
+});
 
   // If advertising started okay, create our service and characteristic
   bleno.on('advertisingStart', function(error) {
@@ -104,7 +113,7 @@ EchoCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResp
     try {
       this._updateValueCallback(Buffer.from(pfreturn + "\r\r"));  // sometime this fails, need to catch
     } catch (error) {
-      if (debugbl > 0) {console.log(error);}
+      if (pdc.debugbl > 0) {console.log(error);}
     }
 
   }
@@ -150,7 +159,7 @@ EchoCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCal
           }
       }
       else {
-          if (debugpdc > 1) {console.log("A client is not connected");}
+          if (pdc.debugbl > 1) {console.log("A client is not connected");}
       }
     }, EVENTLOOPINTERVAL); // inactivityInterval
   };
@@ -197,6 +206,37 @@ EchoCharacteristic.prototype.onUnsubscribe = function() {
     // if (debugbl > 0) { console.log(error);}
   }
 };
+
+
+const getBluetoothAdapterAddress = async () => {
+  const { stdout } = await promisify(exec)('hciconfig -a');
+  const regex = /BD Address: ([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})/;
+  const match = stdout.match(regex);
+  if (match) {
+    return match[0];
+  }
+  throw new Error('Bluetooth adapter address not found.');
+};
+
+const convertToDeviceName = async () => {
+  const address = await getBluetoothAdapterAddress();
+  const regex = /([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})/;
+  const match = address.match(regex);
+  if (match) {
+    const last4Digits = match[0].replace(/:/g, '').slice(-4);
+    return `PKL24-${last4Digits}`;
+  }
+  throw new Error('Bluetooth adapter address not found.');
+};
+
+/* Helper function that creates the device name from a bluetooth address string, in the format: 12:34:56:78:9a:bc */
+// function formatBluetoothAddress(bladdress) {
+//   if (typeof(address) != undefined) {
+//     const lastFourDigits = bladdress.replace(/:/gi, '').slice(-4).toUpperCase();
+//     return `PKL24-${lastFourDigits}`;
+//   }
+// }
+
 
 /* Forcibly disconnects a client */
 export function disconnect () {
