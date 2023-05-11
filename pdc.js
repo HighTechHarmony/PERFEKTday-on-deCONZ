@@ -330,13 +330,14 @@ function cycleReview () {
     let oldPerfektDay = pdc_parameters.PerfektDay;
     pdc_parameters.PerfektDay = false;
 
-    let mins = TimeToMins(pdc_parameters.SunUp);
+    let mins = TimeToMins(pdc_parameters.SunUp)-120; // 2 hours before SunUp time
     // let count = 0;
 
     const interval = setInterval(() => {
-        if (mins >= TimeToMins(pdc_parameters.SunDown)) {
+        if (mins >= TimeToMins(pdc_parameters.SunDown)+120)  // 2 hours after SunDown time
+        {
             clearInterval(interval);
-            pdc_parameters.PerfektDay = oldPerfektDay;  // Restore PerfektDay setting
+            pdc_parameters.PerfektDay = true;  // Restore PerfektDay setting
             deconz.flashFixture(); // Flash the fixture to show we are done
             return;
         }
