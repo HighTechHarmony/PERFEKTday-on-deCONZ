@@ -35,10 +35,10 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 const CYCLEREVIEWINTERVAL = 500; 
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
-export const debugpdc = 1; // PDC debug level
-export const debugbl = 1;  // Bluetooth debug level. 
+export const debugpdc = 2; // PDC debug level
+export const debugbl = 2;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
-export const debugcp = 1;  // Command Parser debug level
+export const debugcp = 2;  // Command Parser debug level
 
 
 // a shared object with variables of parameters that are shared between and modified by both the pdc and the command parser 
@@ -89,12 +89,12 @@ process.on('SIGINT', _ => {
   });
 
 /* If the cycle review button is pressed, call function to do cycle review */
-buttonCR.watch((err, value) => {
+buttonCR.watch(async (err, value) => {
     if (err) {
         throw err;
     }
 
-    cycleReview();
+    await cycleReview();
 });
 
 /* If the pairing button is pressed, call function to initiate join */
@@ -291,16 +291,17 @@ function DimPerfectDay(minsnow) {
     let resulting = 0;
     let prop = 0;
     if (minsnow < sunup || minsnow > sundown) {
+        if (debugpdc > 1) {console.log ("Pre sunup calculated as " + pdc_parameters.SunDownDim);}
         return pdc_parameters.SunDownDim;
     }
     if (minsnow >= sunup && minsnow < sonoon) {
         prop = ((Math.sin((minsnow - sunup) / (sonoon - sunup)) * (Math.PI / 2)));
-        return Math.round((prop * pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc_parameters.SunUpDim));
+        return deconz.clamp(Math.round((prop * pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc_parameters.SunUpDim)), 0, pdc_parameters.SolarNoonDim);
     }
     if (minsnow <= sundown && minsnow >= sonoon) {
         let prop = Math.sin((parseFloat(sundown - minsnow) / parseFloat(sundown - sonoon)) * (Math.PI / 2));
         // return Math.round((Math.sin((sundown - minsnow) / (sundown - sonoon)) * (Math.PI / 2))) * pdc_parameters.SolarNoonDim + ((1 - prop) * pdc_parameters.SunDownDim);
-        return Math.round ((prop * pdc.pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc.pdc_parameters.SunDownDim));
+        return deconz.clamp(Math.round ((prop * pdc.pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc.pdc_parameters.SunDownDim)), 0, pdc_parameters.SolarNoonDim);
     }
 }
 
@@ -323,26 +324,27 @@ function TimeToMins(time) {
 }
 
 /* If the button is pushed, this will engage cycle review mode. This is a quick run through of the PD day */
-function cycleReview () {
+async function cycleReview () {
     console.log("cycleReview()");
-
+    
     // Disable PERFEKTday because it will interfere
     let oldPerfektDay = pdc_parameters.PerfektDay;
-    pdc_parameters.PerfektDay = false;
+    pdc_parameters.PerfektDay = 0;
 
     let mins = TimeToMins(pdc_parameters.SunUp)-120; // 2 hours before SunUp time
     // let count = 0;
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
         if (mins >= TimeToMins(pdc_parameters.SunDown)+120)  // 2 hours after SunDown time
         {
             clearInterval(interval);
-            pdc_parameters.PerfektDay = true;  // Restore PerfektDay setting
+            pdc_parameters.PerfektDay = 1;  // Restore PerfektDay setting
             deconz.flashFixture(); // Flash the fixture to show we are done
             return;
         }
         console.log("mins = " + mins);
-        doUpdateAll(mins);
+        
+        await doUpdateAll(mins);
         mins += 15;
         // count++;
     }, CYCLEREVIEWINTERVAL);

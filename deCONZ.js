@@ -9,7 +9,7 @@ import * as pdc from './pdc.js';
 var DCONZSERVER = "127.0.0.1";
 // Bluetooth advertised name  
 
-const API  = "82C80C894F";
+const API  = "1372DA528A";
 const PORT = 80;
 
 var FLASH_DELAY = 1000;
@@ -170,7 +170,7 @@ export function kelvinTo8Bit(kelvin) {
 
 
 /* Helper function to clamp Kelvin values */
-function clamp(value, min, max) {
+export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 

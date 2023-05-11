@@ -36,6 +36,10 @@ bleno.on('stateChange', function(state) {
     }
   });
 
+  bleno.on('addressChange', (address) => {
+    if (debugbl > 0) {console.log(`Bleno adapter address changed to ${address}`);}
+  });
+
   // If advertising started okay, create our service and characteristic
   bleno.on('advertisingStart', function(error) {
     if (pdc.debugbl > 0) {console.log('on -> advertisingStart: ' + (error ? 'error ' + error : 'success'));}
