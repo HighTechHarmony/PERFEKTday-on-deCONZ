@@ -61,6 +61,10 @@ export let pdc_parameters = {
     clientConnected: false,    
 }
 
+/* A blacklist of pdc_parameters that should not be saved or restored between startups */
+const blacklist = ['PerfektDay', 'PerfektLight', 'clientConnected', 'hue_sem'];  
+
+
 /* Attempt to restore the above pdc_parameters from data file (overwriting them) */
 restoreParams();
 
@@ -149,7 +153,7 @@ export function doUpdateAll (mins) {
     let dl_string = pdc_parameters.dimNow;
 
     //Send an update to the light group the zigbee interface isn't busy
-    // if (!pdc.pdc_parameters.hue_sem && (pdc.pdc_parameters.cctNow != pdc.pdc_parameters.OldColorTemp || pdc.pdc_parameters.dimNow != pdc.pdc_parameters.OldDimLevel))     
+    // if (!pdc_parameters.hue_sem && (pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc_parameters.dimNow != pdc_parameters.OldDimLevel))     
     
     let ct = "";
     deconz.getGroupValue("ct").then((ct) => {
@@ -194,21 +198,21 @@ export function doUpdateAll (mins) {
 
 /* Explicitly calculate and update the Colortemp of the bulb group, used for forced updates after time settings */
 export function doUpdateCCT (mins) {
-    pdc.pdc_parameters.cctNow = CCTPerfectDay(mins);
-    if (debugpdc > 1) {console.log("Computed CCT: " + pdc.pdc_parameters.cctNow);}
+    pdc_parameters.cctNow = CCTPerfectDay(mins);
+    if (debugpdc > 1) {console.log("Computed CCT: " + pdc_parameters.cctNow);}
 
     //Send an update to the light group if solar position changed and the zigbee interface isn't busy
     
-    pdc.pdc_parameters.hue_sem = true;        
+    pdc_parameters.hue_sem = true;        
 
     // Update the CT
-    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
+    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc_parameters.cctNow));
     if (debugpdc > 0) {console.log("doUpdateCCT () Updating bulb group (zigbee) with new CCT: "+ pdc_parameters.cctNow);}
     deconz.setGroupValue("ct", mired_to_send, "0");        
 
         
     // Update the value comparator
-    pdc.pdc_parameters.OldColorTemp = pdc.pdc_parameters.cctNow;
+    pdc_parameters.OldColorTemp = pdc_parameters.cctNow;
 
     pdc_parameters.hue_sem = false;
 
@@ -218,22 +222,22 @@ export function doUpdateCCT (mins) {
 /* Explicitly calculate and update the dimlevel of the bulb group, used for forced updates after time settings */
 export function doUpdateDim (mins) {
 
-    pdc.pdc_parameters.dimNow = DimPerfectDay(mins);
-    if (debugpdc > 1) {console.log("Computed Dim: " + pdc.pdc_parameters.dimNow);}
+    pdc_parameters.dimNow = DimPerfectDay(mins);
+    if (debugpdc > 1) {console.log("Computed Dim: " + pdc_parameters.dimNow);}
 
-    pdc.pdc_parameters.hue_sem = true;
+    pdc_parameters.hue_sem = true;
 
     // Update the dimlevel
     if (debugpdc > 0) {console.log("doUpdateDim() Updating bulb group (zigbee) with new DimLevel: "+ pdc_parameters.dimNow);}
-    let dl_string = pdc.pdc_parameters.dimNow;        
+    let dl_string = pdc_parameters.dimNow;        
     deconz.setGroupValue("bri", dl_string, "0");
     
     
 
     // Update the value comparator        
-    pdc.pdc_parameters.OldDimLevel = pdc.pdc_parameters.dimNow;
+    pdc_parameters.OldDimLevel = pdc_parameters.dimNow;
 
-    pdc.pdc_parameters.hue_sem = false;
+    pdc_parameters.hue_sem = false;
 
 }
 
@@ -274,7 +278,7 @@ function DimPerfectDay(minsnow) {
     if (minsnow <= sundown && minsnow >= sonoon) {
         let prop = Math.sin((parseFloat(sundown - minsnow) / parseFloat(sundown - sonoon)) * (Math.PI / 2));
         // return Math.round((Math.sin((sundown - minsnow) / (sundown - sonoon)) * (Math.PI / 2))) * pdc_parameters.SolarNoonDim + ((1 - prop) * pdc_parameters.SunDownDim);
-        return deconz.clamp(Math.round ((prop * pdc.pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc.pdc_parameters.SunDownDim)), 0, pdc_parameters.SolarNoonDim);
+        return deconz.clamp(Math.round ((prop * pdc_parameters.SolarNoonDim) + ((1 - prop) * pdc_parameters.SunDownDim)), 0, pdc_parameters.SolarNoonDim);
     }
 }
 
@@ -326,15 +330,23 @@ async function cycleReview () {
 
 /* Writes all PDC parameters to a file for restoring at startup */
 export function storeParams () {  
-  
-  fs.writeFile(datafilepath, JSON.stringify(pdc_parameters), (err) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
     
-    console.log('PDC Parameters written to ' + datafilepath);
-  });
+
+    const filteredParams = Object.keys(pdc_parameters)
+    .filter(key => !blacklist.includes(key))
+    .reduce((obj, key) => {
+        obj[key] = pdc_parameters[key];
+        return obj;
+    }, {});
+
+        fs.writeFile(datafilepath, JSON.stringify(filteredParams), (err) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
+        console.log('PDC Parameters written to ' + datafilepath);
+        });  
+    
 }
 
 /* Restores all PDC parameters from file */
@@ -354,7 +366,7 @@ function restoreParams () {
 
         // Temporarily store the value of PerfektDay
         let tempPerfektDay = pdc_parameters.PerfektDay;
-        const blacklist = ['PerfektDay'];  // Ignore PerfektDay attribute when when restoring
+        
         const parsedData = JSON.parse(data);
         pdc_parameters = Object.keys(parsedData)
             .filter(key => !blacklist.includes(key))
