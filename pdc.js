@@ -11,10 +11,6 @@ import {Gpio} from 'onoff';
 /* Functions and variables that deal with talking to the zigbee lights */
 import * as deconz from './deCONZ.js';
 
-
-/* Functions and variables that deal with PERFEKTday tracking */
-import * as pdc from './pdc.js';
-
 /* Functions and variables that deal with talking with a ble client */
 import * as bleservice from './bleservice.js';
 
@@ -35,10 +31,10 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 const CYCLEREVIEWINTERVAL = 500; 
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
-export const debugpdc = 2; // PDC debug level
-export const debugbl = 2;  // Bluetooth debug level. 
+export const debugpdc = 1; // PDC debug level
+export const debugbl = 1;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
-export const debugcp = 2;  // Command Parser debug level
+export const debugcp = 1;  // Command Parser debug level
 
 
 // a shared object with variables of parameters that are shared between and modified by both the pdc and the command parser 
@@ -68,24 +64,23 @@ export let pdc_parameters = {
 /* Attempt to restore the above pdc_parameters from data file (overwriting them) */
 restoreParams();
 
-
-// Create instance of a synthetic clock we will use to track the simulated position of sun
-// export const pdClock = new CustomClock();
-// pdc_parameters.pdRealTime = pdClock.getTime();
-
-
 console.log("Starting PERFEKTday Controller");
 
 pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
 pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
+pdc_parameters.PerfektDay = 1; // Always Startup with PerfektDay enabled
 
 /* Some config for the push buttons */
 const buttonCR = new Gpio(cycleReviewButtonPin, 'in', 'rising', {debounceTimeout: 100});
 const buttonPairing = new Gpio(pairingButtonPin, 'in', 'rising', {debounceTimeout: 1000});
 
+/* Uninstall handlers if the program is stopped */
 process.on('SIGINT', _ => {    
     buttonCR.unexport();
     buttonPairing.unexport();
+    clearInterval(pdc_event_loop);
+    clearInterval(ui_event_loop);
+    process.exit(0);
   });
 
 /* If the cycle review button is pressed, call function to do cycle review */
@@ -115,48 +110,26 @@ setInterval(pdc_event_loop, PD_UPDATE_INTERVAL);
 
 /* This is the UI event loop. It is run every EVENTLOOPINTERVAL  (as defined in the bleservice.js module) when there is a subscriber */
 export function ui_event_loop () {
-
     // Currently this function does nothing because the client drives UI updates
-    return "";
 }
 
 
 /* This is the PDC event loop which computes and sends regular PERFEKTday updates to the bulb group */
 export function pdc_event_loop () {
     
-    
+    console.log ("pdc_parameters.PerfektDay = " + pdc_parameters.PerfektDay);
+    // console.log (JSON.stringify(pdc_parameters, null, 4));
     if (debugpdc > 1) {console.log("pdc_event_loop cycle");}   
 
     // If PERFEKTday is enabled, we will calculate and run regular cct and dim adjustments    
-    if (pdc.pdc_parameters.PerfektDay) {
-        // doUpdateCCT();
-        // doUpdateDim();
+    if (pdc_parameters.PerfektDay == 1) {
+        if (debugpdc > 1) {console.log ("pdc_parameters.PerfektDay = " + pdc_parameters.PerfektDay + ", doing PERFEKTday update");}
         doUpdateAll(minsNow());
     } // End of if perfektday enabled
     
 
-    // console.log ("disconnect_timer = " + pdc_parameters.disconnect_timer);
-    // // If a client is connected, deduct seconds since they last said something
-    // if (pdc_parameters.clientConnected) {
-    //     if (debugpdc > 1) {console.log ("disconnect time: " + pdc_parameters.disconnect_timer);}
-    //     pdc_parameters.disconnect_timer = pdc_parameters.disconnect_timer - PD_UPDATE_INTERVAL;
-
-        
-    //     if (pdc_parameters.disconnect_timer <= 0) {
-    //         // well I think they're dead, kick them.
-    //         pdc_parameters.disconnect_timer = 0;  //Don't let disconnect_timer go below 0
-    //         clearInterval(disconnect_interval);
-    //         bleservice.disconnect();
-    //     }
-    // }
-    // else {
-    //     if (debugpdc > 1) {console.log("A client is not connected");}
-    // }
-    
-
-
     // This function returns nothing
-    return "";
+    // return "";
 
 }
 
@@ -168,7 +141,7 @@ export function pdc_event_loop () {
 export function doUpdateAll (mins) {
     pdc_parameters.cctNow = CCTPerfectDay(mins);
     if (debugpdc > 1) {console.log("Computed CCT: " + pdc_parameters.cctNow);}
-    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc.pdc_parameters.cctNow));
+    let mired_to_send = deconz.kelvinToMired(deconz._8bit_to_kelvin(pdc_parameters.cctNow));
         
     
     pdc_parameters.dimNow = DimPerfectDay(mins);    
@@ -201,7 +174,7 @@ export function doUpdateAll (mins) {
     // if (!pdc_parameters.hue_sem && (pdc_parameters.cctNow != pdc_parameters.OldColorTemp || pdc_parameters.dimNow != pdc_parameters.OldDimLevel))    
     if (!pdc_parameters.hue_sem )    
     {
-        pdc.pdc_parameters.hue_sem = true;
+        pdc_parameters.hue_sem = true;
 
         // Update both in one shot
         if (debugpdc > 0) {console.log("doUpdateAll () Updating bulb group (zigbee) with: "+ mired_to_send + "," + dl_string);}
@@ -377,10 +350,20 @@ function restoreParams () {
         if (err) {
           console.error(err);          
           return;
-        }
-        
-        // const { value1, value2, value3 } = JSON.parse(data);
-        pdc_parameters =  JSON.parse(data);
+        }        
+
+        // Temporarily store the value of PerfektDay
+        let tempPerfektDay = pdc_parameters.PerfektDay;
+        const blacklist = ['PerfektDay'];  // Ignore PerfektDay attribute when when restoring
+        const parsedData = JSON.parse(data);
+        pdc_parameters = Object.keys(parsedData)
+            .filter(key => !blacklist.includes(key))
+            .reduce((obj, key) => {
+                obj[key] = parsedData[key];
+                return obj;
+            }, {});
+
+        pdc_parameters.PerfektDay = tempPerfektDay;
 
         console.log('PDC Parameters restored from ' + datafilepath);
     });    

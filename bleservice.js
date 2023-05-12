@@ -26,6 +26,7 @@ var inactivityInterval =  null;
 var ch = null;
 
 
+
 // Control advertising based on bleno starting or stopping. 
 bleno.on('stateChange', function(state) {  
   console.log('on -> stateChange: ' + state);
@@ -228,14 +229,6 @@ const convertToDeviceName = async () => {
   }
   throw new Error('Bluetooth adapter address not found.');
 };
-
-/* Helper function that creates the device name from a bluetooth address string, in the format: 12:34:56:78:9a:bc */
-// function formatBluetoothAddress(bladdress) {
-//   if (typeof(address) != undefined) {
-//     const lastFourDigits = bladdress.replace(/:/gi, '').slice(-4).toUpperCase();
-//     return `PKL24-${lastFourDigits}`;
-//   }
-// }
 
 
 /* Forcibly disconnects a client */

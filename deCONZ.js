@@ -9,7 +9,8 @@ import * as pdc from './pdc.js';
 var DCONZSERVER = "127.0.0.1";
 // Bluetooth advertised name  
 
-const API  = "1372DA528A";
+//const API  = "1372DA528A";
+const API  = "82C80C894F";
 const PORT = 80;
 
 var FLASH_DELAY = 1000;
@@ -146,13 +147,7 @@ export function _8bit_to_kelvin(_8_bit_cct) {
 
     let proportion = _8_bit_cct / 255;
     let cct = Math.round(proportion * (MAX_CCT - MIN_CCT) + MIN_CCT);
-  
-    // if (cct < MIN_CCT) {
-    //   cct = MIN_CCT;
-    // } else if (cct > MAX_CCT) {
-    //   cct = MAX_CCT;
-    // }
- 
+   
     cct = clamp(cct, MIN_CCT, MAX_CCT);
 
     if (pdc.debugdc > 1) {console.log("Kelvin: " + cct);}

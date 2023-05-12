@@ -10,6 +10,7 @@ import {exec} from 'child_process';
 
 const delimiters = "?, \n";
 
+
 export function parseFunction(data)
 {
     var mymonth;
@@ -285,7 +286,7 @@ export function parseFunction(data)
         // Force an immediate update of the PDC in case this is part of a cycle review
         // pdc.OldColorTemp = 999;  // Force Invalidate
         // pdc.OldDimLevel = 999;   // Force Invalidate
-        if (pdc.pdc_parameters.PerfektDay) {
+        if (pdc.pdc_parameters.PerfektDay == 1) {
             pdc.doUpdateCCT(pdc.minsNow());
             pdc.doUpdateDim(pdc.minsNow());
         }
