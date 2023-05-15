@@ -20,6 +20,7 @@ import * as bleservice from './bleservice.js';
 // GPIO pin of the cycle review button
 const cycleReviewButtonPin = 6;
 const pairingButtonPin = 5;
+const ledPin = 13;
 const datafilepath = 'pdc_data.json';
 
 /* Variables shared with other modules */
@@ -29,6 +30,10 @@ const PD_UPDATE_INTERVAL = 2000; // Time in milliseconds to check and update the
 
 // Time in milliseconds for each cycle review tick. This should be longer than the Hue transition time or it looks bad
 const CYCLEREVIEWINTERVAL = 500; 
+
+export const LEDBLINKSLOWINTERVAL = 2000;  // Pairing 
+export const LEDBLINKFASTINTERVAL = 150;   // Cycle review
+
 
 /* Debug levels for each module.  1 is pretty much errors and status indications only, 2 and up will log traffic to the console */
 export const debugpdc = 1; // PDC debug level
@@ -58,11 +63,13 @@ export let pdc_parameters = {
     OldColorTemp: 0,
     dimNow: 255,
     OldDimLevel: 255,
-    clientConnected: false,    
+    clientConnected: false,
+    stopBlinking: false,   // Set this to on to stop blinking
+    led_state: 0       // 0 = off, 1 = on, 2= blink slow, 3= blink fast, 4 = fade blink
 }
 
 /* A blacklist of pdc_parameters that should not be saved or restored between startups */
-const blacklist = ['PerfektDay', 'PerfektLight', 'clientConnected', 'hue_sem'];  
+const blacklist = ['PerfektDay', 'PerfektLight', 'clientConnected', 'hue_sem', 'stopBlinking', 'led_state'];  
 
 
 /* Attempt to restore the above pdc_parameters from data file (overwriting them) */
@@ -78,12 +85,24 @@ pdc_parameters.PerfektDay = 1; // Always Startup with PerfektDay enabled
 const buttonCR = new Gpio(cycleReviewButtonPin, 'in', 'rising', {debounceTimeout: 100});
 const buttonPairing = new Gpio(pairingButtonPin, 'in', 'rising', {debounceTimeout: 1000});
 
+/* Configure the indicator LED */
+const led = new Gpio(ledPin, 'out');
+pdc_parameters.led_state = 4;
+
+ledOn();  // The LED is turned on to indicate the program is running
+
+
+/* Clean up on exit (Ctrl-C) */
 /* Uninstall handlers if the program is stopped */
-process.on('SIGINT', _ => {    
+process.on('SIGINT', _ => {
+    ledOff();  // Turn off the LED to indicate the program is going down
+         
     buttonCR.unexport();
-    buttonPairing.unexport();
-    clearInterval(pdc_event_loop);
-    clearInterval(ui_event_loop);
+    buttonPairing.unexport();    
+    led.unexport();
+    if (typeof pdc_event_loop !== 'undefined') {clearInterval(pdc_event_loop);}
+    if (typeof ui_event_loop !== 'undefined') {clearInterval(ui_event_loop);}
+    if (typeof ledBlinkInterval !== 'undefined') {clearInterval(ledBlinkInterval);}
     process.exit(0);
   });
 
@@ -131,9 +150,6 @@ export function pdc_event_loop () {
         doUpdateAll(minsNow());
     } // End of if perfektday enabled
     
-
-    // This function returns nothing
-    // return "";
 
 }
 
@@ -304,6 +320,8 @@ function TimeToMins(time) {
 async function cycleReview () {
     console.log("cycleReview()");
     
+    ledBlinkFor(1, 0);
+
     // Disable PERFEKTday because it will interfere
     let oldPerfektDay = pdc_parameters.PerfektDay;
     pdc_parameters.PerfektDay = 0;
@@ -314,9 +332,11 @@ async function cycleReview () {
     const interval = setInterval(async () => {
         if (mins >= TimeToMins(pdc_parameters.SunDown)+120)  // 2 hours after SunDown time
         {
-            clearInterval(interval);
+            clearInterval(interval);  // Clear the cycle review interval
             pdc_parameters.PerfektDay = 1;  // Restore PerfektDay setting
             deconz.flashFixture(); // Flash the fixture to show we are done
+
+            await ledOn();  //Return LED to normal on state
             return;
         }
         console.log("mins = " + mins);
@@ -379,4 +399,172 @@ function restoreParams () {
 
         console.log('PDC Parameters restored from ' + datafilepath);
     });    
+}
+
+
+  
+
+/* A set of LED communicator functions 
+ *
+ * Example usages:
+ * ledOff() turns LED off
+ * ledOn() turns LED on solid
+ * ledBlinkFor (0,0) blinks the led slowly forever until a different function is called, or pdc_parameters.stopBlinking is set to true (auto resets)
+ * ledBlinkFor(0, 255) blinks the led slowly for 255 seconds and then returns to the previous state (on or off)
+ * ledBlinkFor(1, 30) blinks the led fast for 30 seconds and then returns to the previous state (on or off)
+ * ledDoubleBlinkFor (15) double blinks the led for 15 seconds and then returns to the previous state (on or off) * 
+ */
+
+
+  
+/* Starts the LED blinking 
+fast = 0 or 1, for slow or fast blinking
+if timeout is 0 will blink continuously, otherwise it will stop blinking after the preset number of seconds */
+export function ledBlinkFor (fast, timeoutSeconds)
+{
+    
+    // Store the current state of the LED for later
+    let old_led_state = pdc_parameters.led_state;
+    pdc_parameters.led_state = 2;  // Update the current LED state
+
+    pdc_parameters.stopBlinking = false;    
+
+    // Toggle the state of the LED connected to GPIO every nnn ms
+    const blinkLed = _ => {
+        if (pdc_parameters.stopBlinking) {
+            if (timeoutSeconds > 0 ) {
+                // Restore to LED action to that of the previous state 
+                pdc_parameters.led_state = old_led_state;
+                if (pdc_parameters.led_state == 0) {
+                    if (typeof ledBlinkInterval !== 'undefined') {
+                        clearInterval (ledBlinkInterval); 
+                        ledBlinkInterval = undefined;
+                    }
+                    if (debugpdc>1) {console.log("ledDoubleBlinkFor() restoring LED state to off");}
+                    ledOff();
+                }
+                else {
+                    if (typeof ledBlinkInterval !== 'undefined') {
+                        clearInterval (ledBlinkInterval); 
+                        ledBlinkInterval = undefined;
+                    }
+                    if (debugpdc>1) {console.log("ledDoubleBlinkFor() restoring LED state to on");}
+                    ledOn();
+                }
+            } // If timeoutSeconds > 0
+
+            pdc_parameters.stopBlinking = false;
+            return;
+        } // If stopBlinking
+
+
+        led.read((err, value) => { // Asynchronous read
+            if (err) {
+            throw err;
+            }
+
+            led.write(value ^ 1, err => { // Asynchronous write
+            if (err) {
+                throw err;
+            }
+            });
+        });
+
+        if (fast == 0) {setTimeout(blinkLed, LEDBLINKSLOWINTERVAL);}
+        if (fast == 1) {setTimeout(blinkLed, LEDBLINKFASTINTERVAL);}
+    };  // blinkLED()
+
+    blinkLed();
+
+    // Stop blinking the LED after timeoutseconds
+    if (timeoutSeconds > 0) {    setTimeout(_ => pdc_parameters.stopBlinking = true, timeoutSeconds*1000); }
+
+}
+
+
+/* Starts the LED double blinking continuously if timeout is 0, otherwise it will stop blinking after the preset number of seconds */
+export function ledDoubleBlinkFor (timeoutSeconds) {    
+    
+    // Store the current state of the LED for later
+    let old_led_state = pdc_parameters.led_state;
+    pdc_parameters.led_state = 4;  // Update the current state
+
+    pdc_parameters.stopBlinking = false;    
+   
+    // Toggle the state of the LED connected to GPIO every nnn ms
+    const blinkLed = _ => {
+        if (pdc_parameters.stopBlinking) {
+            if (timeoutSeconds > 0 ) {
+                // Restore to LED action to that of the previous state 
+                pdc_parameters.led_state = old_led_state;
+                if (pdc_parameters.led_state == 0) {
+                    if (typeof ledBlinkInterval !== 'undefined') {
+                        clearInterval (ledBlinkInterval); 
+                        ledBlinkInterval = undefined;
+                    }
+                    if (debugpdc>1) {console.log("ledDoubleBlinkFor() restoring LED state to off");}
+                    ledOff();
+                }
+                else {
+                    if (typeof ledBlinkInterval !== 'undefined') {
+                        clearInterval (ledBlinkInterval); 
+                        ledBlinkInterval = undefined;
+                    }
+                    if (debugpdc>1) {console.log("ledDoubleBlinkFor() restoring LED state to on");}
+                    ledOn();
+                }
+            } // If timeoutSeconds > 0
+   
+            pdc_parameters.stopBlinking = false;
+            return;
+        }  // If stopBlinking
+    
+        led.writeSync(0);
+            setTimeout(() => {
+                led.writeSync(1);
+                setTimeout(() => {
+                led.writeSync(0);
+                setTimeout(() => {
+                    led.writeSync(1);
+                }, 100);
+                }, 100);
+            }, 500);
+                
+        setTimeout(blinkLed, LEDBLINKSLOWINTERVAL*2);
+    };  // blinkLED()
+   
+    blinkLed();
+
+    // Stop blinking the LED after timeoutseconds
+    if (timeoutSeconds > 0) {    setTimeout(_ => pdc_parameters.stopBlinking = true, timeoutSeconds*1000); }
+    
+}
+
+
+/* Stops any blinking and turns the indicator LED on steady */
+export function ledOn() {
+
+    // Stop any blinking
+    pdc_parameters.stopBlinking = true;
+    pdc_parameters.led_state = 1;
+    led.writeSync(1);
+    
+    }
+    
+/* Stops any blinking and turns the indicator LED OFF */
+export function ledOff() {
+    // Stop any blinking
+    pdc_parameters.stopBlinking = true;
+    pdc_parameters.led_state = 0;
+    led.writeSync(0);
+}
+     
+
+/* Helper function to toggle the LED state for blinking, etc. */
+export function toggleLED() {
+    if (led.readSync() === 0) {
+        led.writeSync(1);
+    } else {
+        led.writeSync(0);
+    }
 }

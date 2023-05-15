@@ -16,7 +16,7 @@ const PORT = 80;
 var FLASH_DELAY = 1000;
 var FLASH_ID_ON_BOOT = 1000;
 var WAIT_INTERVAL = 25;
-var pairingSeconds = 254; //1–254 = time in seconds the network remains open for new devices to pair
+var pairingSeconds = 60; //1–254 = time in seconds the network remains open for new devices to pair
 
 // Delay when sending commands to deCONZ
 export var SEND_DELAY = 1000;
@@ -96,6 +96,10 @@ export async function initiateJoin () {
     if (pdc.debugdc > 0 ) {
         console.log ("Initiating pairing mode");
     }
+
+    // Blink the LED slowly for the duration of the pairing
+    // const ledblinkInterval = setInterval(pdc.toggleLED(), pdc.LEDBLINKSLOWINTERVAL);
+    pdc.ledBlinkFor(0, pairingSeconds);
 
     if (pdc.debugdc > 1) {
         
