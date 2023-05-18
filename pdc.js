@@ -69,7 +69,19 @@ export let pdc_parameters = {
 }
 
 /* A blacklist of pdc_parameters that should not be saved or restored between startups */
-const blacklist = ['PerfektDay', 'PerfektLight', 'clientConnected', 'hue_sem', 'stopBlinking', 'led_state'];  
+const blacklist = [ 'PerfektDay', 
+                    'PerfektLight', 
+                    'clientConnected', 
+                    'hue_sem', 
+                    'stopBlinking', 
+                    'led_state', 
+                    'DimLevel', 
+                    'DimLevelScaled',
+                    'ColorTemp',
+                    'ColorTempScaled',
+                    'OldDimLevel',
+                    'OldColorTemp',                    
+                ];  
 
 
 /* Attempt to restore the above pdc_parameters from data file (overwriting them) */
@@ -77,8 +89,8 @@ restoreParams();
 
 console.log("Starting PERFEKTday Controller");
 
-pdc_parameters.OldDimLevel = pdc_parameters.DimLevel;
-pdc_parameters.OldColorTemp = pdc_parameters.ColorTemp;
+pdc_parameters.OldDimLevel = pdc_parameters.dimNow;
+pdc_parameters.OldColorTemp = pdc_parameters.cctNow;
 pdc_parameters.PerfektDay = 1; // Always Startup with PerfektDay enabled
 
 /* Some config for the push buttons */
@@ -387,17 +399,38 @@ function restoreParams () {
         // Temporarily store the value of PerfektDay
         let tempPerfektDay = pdc_parameters.PerfektDay;
         
-        const parsedData = JSON.parse(data);
-        pdc_parameters = Object.keys(parsedData)
-            .filter(key => !blacklist.includes(key))
-            .reduce((obj, key) => {
-                obj[key] = parsedData[key];
-                return obj;
-            }, {});
+        let parsedData = {};
+        
+        // Attempt to parse the data from the file
+        if (data) {
+            try {
+                parsedData = JSON.parse(data);                
+            }
+            catch (err)
+            {
+                if (debugpdc > 0) {console.log(err);}
+                
+                // We failed, blow away the pdc_data file because it's probably corrupt
+                if (debugpdc > 0) {console.log("Corrupt data file detected, resetting stored parameters");}            
+                fs.unlinkSync('pdc_data.json');
+                return;
+            }
+        }
+        else {if (debugpdc > 0) {console.log ("No data to parse");}}
 
-        pdc_parameters.PerfektDay = tempPerfektDay;
-
-        console.log('PDC Parameters restored from ' + datafilepath);
+        // If we get here and for some reason we don't have parsed data, skip trying to restore the properties
+        if (typeof parsedData !== 'undefined') {
+            pdc_parameters = Object.keys(parsedData)
+                .filter(key => !blacklist.includes(key))
+                .reduce((obj, key) => {
+                    obj[key] = parsedData[key];
+                    return obj;
+                }, {});
+            if (debugpdc > 0) {console.log('PDC Parameters restored from ' + datafilepath);}            
+        }
+        else {if (debugpdc > 0) {console.log ("Skipping PDC data restore because we didn't get any data from the file");}}
+        
+        pdc_parameters.PerfektDay = tempPerfektDay; // Restore the previous value of PERFEKTday
     });    
 }
 

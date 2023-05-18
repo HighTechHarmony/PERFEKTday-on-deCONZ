@@ -4,6 +4,7 @@ Requires=deconz-gui.service
 
 [Service]
 Environment=NODE_PORT=3001
+Environment=BLENO_ADVERTISING_INTERVAL=760
 Type=simple
 User=root
 ExecStartPre=/bin/bash -c '(while ! nc -z -v -w1 localhost 80 2>/dev/null; do echo "Waiting for port 80 to open..."; sleep 2; done); sleep 2'
