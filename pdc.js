@@ -601,8 +601,4 @@ export function toggleLED() {
     } else {
         led.writeSync(0);
     }
-=======
-        console.log('PDC Parameters restored from ' + datafilepath);
-    });    
-
 }
