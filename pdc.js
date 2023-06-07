@@ -346,7 +346,7 @@ async function cycleReview () {
         {
             clearInterval(interval);  // Clear the cycle review interval
             pdc_parameters.PerfektDay = 1;  // Restore PerfektDay setting
-            deconz.flashFixture(); // Flash the fixture to show we are done
+            //deconz.flashFixture(); // Flash the fixture to show we are done
 
             await ledOn();  //Return LED to normal on state
             return;
@@ -433,6 +433,7 @@ function restoreParams () {
         pdc_parameters.PerfektDay = tempPerfektDay; // Restore the previous value of PERFEKTday
     });    
 }
+
 
 
   
@@ -600,4 +601,8 @@ export function toggleLED() {
     } else {
         led.writeSync(0);
     }
+=======
+        console.log('PDC Parameters restored from ' + datafilepath);
+    });    
+
 }
