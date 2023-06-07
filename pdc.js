@@ -316,7 +316,7 @@ async function cycleReview () {
         {
             clearInterval(interval);
             pdc_parameters.PerfektDay = 1;  // Restore PerfektDay setting
-            deconz.flashFixture(); // Flash the fixture to show we are done
+            //deconz.flashFixture(); // Flash the fixture to show we are done
             return;
         }
         console.log("mins = " + mins);
