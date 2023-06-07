@@ -2,7 +2,7 @@ import util from 'util';
 import bleno from 'bleno';
 import * as pdc from './pdc.js';
 import * as CommandLinePKL from './CommandLinePKL.js';
-import {exec} from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 
 
@@ -35,9 +35,18 @@ bleno.on('stateChange', function(state) {
   if (state === 'poweredOn') {
     convertToDeviceName() // Sets a device name based on the Bluetooth adapter address
       .then((result) => {
-        DEVICENAME = result;
-        // if (pdc.debugbl > 0) {console.log(`Device name set to ${DEVICENAME}`);}
+        DEVICENAME = result;        
+        
         if (pdc.debugbl > 0) {console.log("Starting advertising with DEVICENAME " + DEVICENAME);}
+
+        // if (pdc.debugbl > 1) {console.log("Setting hostname and /etc/hosts");}
+        // setHostname(DEVICENAME);  // This must be done for iOS devices because they could potentially pick this up instead of the DEVICENAME. Requires reboot to take effect
+        
+        if (pdc.debugbl > 1) {console.log("Setting GAP name");}
+        process.env['BLENO_DEVICE_NAME'] = DEVICENAME;  // You set the GAP name as device name using an environement variable. Again this is more for iOS devices as they will choose the GAP na
+
+        if (pdc.debugbl > 1) {console.log("Setting advertising name and starting advertising");}
+        /* Start advertising with the host name and characteristics*/
         bleno.startAdvertising(DEVICENAME, [UART_UUID], function(err) {
           console.log(err);
         });
@@ -68,6 +77,31 @@ bleno.on('stateChange', function(state) {
       ]);
     }
   });
+
+/* This function changes the hostname to the desired bluetooth devicename.  This is helpful in ways,
+ * but mostly there is something that causes iOS devices to occasionally pickup this name as the advertised name
+ * instead of the one provided to startAdvertising. It requires a reboot before it will take effect. */
+
+function setHostname(newHostname) {
+
+  // Set the hostname of the machine using hostnamectl
+  exec(`sudo hostnamectl set-hostname ${newHostname}`, (err, stdout, stderr) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(stdout);
+  });
+
+  // Also change the name in /etc/hosts so we don't have name resolution issues
+  exec(`sudo sed -i 's/127.0.1.1.*/127.0.1.1\t${newHostname}/' /etc/hosts`, (err, stdout, stderr) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(stdout);
+  });
+}
 
 // Call the Characteristic constructor and define our RW characteristic and CCCD (Configuration Descriptor)
 var BlenoCharacteristic = bleno.Characteristic;

@@ -5,18 +5,27 @@
 // const axios = require('axios');
 import axios from 'axios';
 import * as pdc from './pdc.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get info about where we are running
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 var DCONZSERVER = "127.0.0.1";
 // Bluetooth advertised name  
 
 //const API  = "1372DA528A";
-const API  = "82C80C894F";
+// const API  = "82C80C894F";
+const API  = readApiKey("1372DA528A");  // Reads the api key from ../api_key.txt and falls back to this if it can't be read
+
 const PORT = 80;
 
 var FLASH_DELAY = 1000;
 var FLASH_ID_ON_BOOT = 1000;
 var WAIT_INTERVAL = 25;
-var pairingSeconds = 254; //1–254 = time in seconds the network remains open for new devices to pair
+var pairingSeconds = 60; //1–254 = time in seconds the network remains open for new devices to pair
 
 // Delay when sending commands to deCONZ
 export var SEND_DELAY = 1000;
@@ -96,6 +105,10 @@ export async function initiateJoin () {
     if (pdc.debugdc > 0 ) {
         console.log ("Initiating pairing mode");
     }
+
+    // Blink the LED slowly for the duration of the pairing
+    // const ledblinkInterval = setInterval(pdc.toggleLED(), pdc.LEDBLINKSLOWINTERVAL);
+    pdc.ledBlinkFor(0, pairingSeconds);
 
     if (pdc.debugdc > 1) {
         
@@ -177,3 +190,18 @@ export function kelvinToMired(kelvin) {
 export function miredToKelvin(mired) {
     return Math.round(1000000 / Number(mired));
 }
+
+/* This function reads the contents of the api_key.txt file from the parent directory of the script. 
+ * If the file exists and can be read, it returns the contents of the file as a string. 
+ * If the file does not exist or cannot be read, it logs an error message to the console and returns a default API key. */
+function readApiKey() {
+    const apiKeyPath = path.join(__dirname, '..', 'api_key.txt');
+    let apiKey;
+    try {
+      apiKey = fs.readFileSync(apiKeyPath, 'utf8').trim();
+    } catch (err) {
+      console.error(`Error reading API key file: ${err}`);
+      apiKey = defaultAPIKey;
+    }
+    return apiKey;
+  };
