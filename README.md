@@ -1,7 +1,7 @@
 # PERFEKTday-on-deCONZ
 
 ## Warning
-The PDC controller manipulates the system clock in order to simulate different times of day and locations. This may rather disturbing on a non-dedicated system.  
+The PDC controller manipulates the system clock in order to simulate different times of day and locations. This may be disturbing behavior on a non-dedicated system.  
 
 ## Installation
 * Clone the repository

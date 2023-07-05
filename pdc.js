@@ -14,6 +14,11 @@ import * as deconz from './deCONZ.js';
 /* Functions and variables that deal with talking with a ble client */
 import * as bleservice from './bleservice.js';
 
+
+/* Used to fire system utilities such as hwclock */
+import {exec} from 'child_process';
+
+
 /* Class for an artificial clock which runs separately from the system */
 // import CustomClock from './pdclock.js';
 
@@ -65,7 +70,8 @@ export let pdc_parameters = {
     OldDimLevel: 255,
     clientConnected: false,
     stopBlinking: false,   // Set this to on to stop blinking
-    led_state: 0       // 0 = off, 1 = on, 2= blink slow, 3= blink fast, 4 = fade blink
+    led_state: 0,       // 0 = off, 1 = on, 2= blink slow, 3= blink fast, 4 = fade blink
+    updateRTCNeeded: false
 }
 
 /* A blacklist of pdc_parameters that should not be saved or restored between startups */
@@ -80,7 +86,8 @@ const blacklist = [ 'PerfektDay',
                     'ColorTemp',
                     'ColorTempScaled',
                     'OldDimLevel',
-                    'OldColorTemp',                    
+                    'OldColorTemp',
+                    'updateRTCNeeded'
                 ];  
 
 
@@ -162,6 +169,13 @@ export function pdc_event_loop () {
         doUpdateAll(minsNow());
     } // End of if perfektday enabled
     
+    // If the updateRTCNeeded flag is set, we will update the RTC
+    if (pdc_parameters.updateRTCNeeded) {
+        if (debugpdc > 1) {console.log ("pdc_parameters.updateRTCNeeded = " + pdc_parameters.updateRTCNeeded);}
+        if (debugpdc > 0) {console.log ("RTC update needed, running hwclock to update RTC...");}
+        updateRTCTime();
+        pdc_parameters.updateRTCNeeded = false;
+    } // End of if updateRTCNeeded
 
 }
 
@@ -601,4 +615,25 @@ export function toggleLED() {
     } else {
         led.writeSync(0);
     }
+}
+
+
+/* This function synchronizes the system clock with the RTC clock */
+function updateRTCTime() {
+    exec(`hwclock --systohc --verbose`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`exec error: ${error}`);            
+        }
+
+        else {
+            if (debugpdc > 0 ) {console.log (`RTC clock set successfully`);}
+        }
+
+        if (debugpdc > 1 ) {
+            console.log(`stdout: ${stdout}`);
+            console.error(`stderr: ${stderr}`);
+        }
+        
+    });
+
 }

@@ -7,6 +7,11 @@ import * as pdc from './pdc.js';
 
 import {exec} from 'child_process';
 
+// import fs from 'fs';
+// import ioctl from 'ioctl';
+// import { RTC_SET_TIME } from 'linux-rtc';
+
+
 
 const delimiters = "?, \n";
 
@@ -327,6 +332,36 @@ export function parseFunction(data)
 
     }
 
+
+    if (extract_command(cleaned) === "RYS") {
+        
+        const year = getYear(extract_numeric(cleaned,delimiters));
+        if (pdc.debugcp > 1) {
+            console.log(`Year: ${year}, Date: ${date}`);
+        }        
+        
+        let now = new Date();        
+        
+        const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+        const dd = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');        
+        const timeString = "\"" + year + mm + dd + " " + hours + ":" + minutes + ":" + seconds + "\"";
+        
+        if (pdc.debugcp > 1) {console.log("Setting system clock to: "+ timeString);}
+        setSystemClock(timeString);        
+
+        // Read it back for verification
+        now = null;
+        now = new Date();
+        let newmm = (now.getMonth() + 1).toString().padStart(2, '0');
+        let newdd = now.getDate().toString().padStart(2, '0');
+
+        return "RD;" + newmm + "/" + newdd;
+
+    }
+
     // If we get to here, the client most likely requested to do something unsupported.
     return "ERR";
 
@@ -393,17 +428,65 @@ function getMonthAndDate(datestring) {
     return { month, date };
 }
 
+/* Takes date in form yy and returns a four digit year yyyy */
+function getYear(datestring) {
+    let twoDigitYear = parseInt(datestring);
+    
+    if (twoDigitYear < 0 || twoDigitYear > 99) {
+        throw new Error('Invalid year');
+    }
+    let fourDigitYear = twoDigitYear + 2000;
+    console.log ("getYear returning time: " + fourDigitYear );
+    return fourDigitYear.toString().padStart(4, '0');
+}
+
 // setSystemClock('05/05/2023 22:01:12');
 function setSystemClock(time) {
     exec(`date --set=${time}`, (error, stdout, stderr) => {
         if (error) {
-        console.error(`exec error: ${error}`);
-        return;
+            console.error(`exec error: ${error}`);
+            return;
         }
-        console.log(`stdout: ${stdout}`);
-        console.error(`stderr: ${stderr}`);
+        console.log(`date command stdout: ${stdout}`);
+        console.error(`date command stderr: ${stderr}`);
     });
+
+    // Flag the RTC to be updated
+    pdc.pdc_parameters.updateRTCNeeded = true;    
+
 }
+
+
+
+
+// // This function attempts to update the time on the RTC directly rather than
+// // through the hwclock command, which seems to fail
+// function setRtcTime() {
+    
+//     const rtcTime = {
+//         tm_year: date.getFullYear() - 1900, // year since 1900
+//         tm_mon: date.getMonth(), // month (0-11)        
+//         tm_mday: date.getDate(), // day of month (1-31)
+//         tm_hour: date.getHours(), // hour (0-23)
+//         tm_min: date.getMinutes(), // minute (0-59)
+//         tm_sec: date.getSeconds() // second (0-59)        
+//     };
+
+//     const fd = fs.openSync('/dev/rtc', 'r+');
+//     if (fd === -1) {
+//         console.error('Failed to open /dev/rtc');
+//         return -1;
+//     }
+
+//     if (ioctl(fd, RTC_SET_TIME, rtcTime) === -1) {
+//         console.error('Failed to set RTC time');
+//         fs.closeSync(fd);
+//         return -1;
+//     }
+
+//     fs.closeSync(fd);
+//     return 0;
+// }
 
 // setSystemTimezone(2);
 function setSystemTimezone(offset) {
