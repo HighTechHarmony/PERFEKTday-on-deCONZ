@@ -274,7 +274,8 @@ export function parseFunction(data)
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
         const day = now.getDate().toString().padStart(2, '0');
         const year = now.getFullYear();
-        const seconds = now.getSeconds().toString().padStart(2, '0');        
+        // const seconds = now.getSeconds().toString().padStart(2, '0');
+        const seconds = "00";  // We now reset the seconds to 00 when setting the time        
         const timeString = "\"" + year +month + day + " " + hours + ":" + minutes + ":" + seconds + "\"";
         
         if (pdc.debugcp > 1) {console.log("Setting system clock to: "+ timeString);}
@@ -302,12 +303,16 @@ export function parseFunction(data)
 
     if (extract_command(cleaned) === "RDS") {
         
-        const  { month,date } = getMonthAndDate(extract_numeric(cleaned,delimiters));
+        let  { month,date } = getMonthAndDate(extract_numeric(cleaned,delimiters));
         if (pdc.debugcp > 1) {
             console.log(`Month: ${month}, Date: ${date}`);
         }   
         
         
+        // Ensure that the month and date are padded with a leading zero if needed
+        month = month.toString().padStart(2, '0');
+        date = date.toString().padStart(2, '0');
+
         let now = new Date();
         
         
@@ -335,11 +340,14 @@ export function parseFunction(data)
 
     if (extract_command(cleaned) === "RYS") {
         
-        const year = getYear(extract_numeric(cleaned,delimiters));
-        if (pdc.debugcp > 1) {
-            console.log(`Year: ${year}, Date: ${date}`);
-        }        
+        let year = getYear(extract_numeric(cleaned,delimiters));
+        // if (pdc.debugcp > 1) {
+        //     console.log(`Year: ${year}, Date: ${date}`);
+        // }        
         
+        // Ensure that the year is padded with a leading zero if needed
+        year = year.toString().padStart(4, '0');
+
         let now = new Date();        
         
         const mm = (now.getMonth() + 1).toString().padStart(2, '0');

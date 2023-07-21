@@ -1,0 +1,16 @@
+7,9c7,9
+< if [ -e /run/systemd/system ] ; then
+<     exit 0
+< fi
+---
+> #if [ -e /run/systemd/system ] ; then
+> #    exit 0
+> #fi
+29c29
+<     /sbin/hwclock --rtc=$dev --systz --badyear
+---
+> #    /sbin/hwclock --rtc=$dev --systz --badyear
+32c32
+<     /sbin/hwclock --rtc=$dev --systz
+---
+> #    /sbin/hwclock --rtc=$dev --systz
