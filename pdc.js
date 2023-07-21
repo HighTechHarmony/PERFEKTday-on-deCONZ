@@ -44,7 +44,7 @@ export const LEDBLINKFASTINTERVAL = 150;   // Cycle review
 export const debugpdc = 1; // PDC debug level
 export const debugbl = 1;  // Bluetooth debug level. 
 export const debugdc = 1;  // deCONZ debug level
-export const debugcp = 2;  // Command Parser debug level
+export const debugcp = 1;  // Command Parser debug level
 
 
 // a shared object with variables of parameters that are shared between and modified by both the pdc and the command parser 
